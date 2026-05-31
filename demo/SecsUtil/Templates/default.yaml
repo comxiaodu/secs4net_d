@@ -1,0 +1,322 @@
+- Name: S1F1 - Are You There
+  Description: 询问设备是否在线
+  Stream: 1
+  Function: 1
+  ReplyExpected: true
+  SecsItem:
+    List: []
+
+- Name: S1F2 - On Line Data
+  Description: 响应在线数据
+  Stream: 1
+  Function: 2
+  ReplyExpected: false
+  SecsItem:
+    List:
+      - U2: [0]
+      - ASCII: ["ONLINE"]
+
+- Name: S1F13 - Establish Communications Request
+  Description: 建立通信请求 (Host)
+  Stream: 1
+  Function: 13
+  ReplyExpected: true
+  SecsItem:
+    List: []
+
+- Name: S1F14 - Establish Communications Confirm
+  Description: 建立通信确认
+  Stream: 1
+  Function: 14
+  ReplyExpected: false
+  SecsItem:
+    List:
+      - Binary: [0]
+      - List: []
+
+- Name: S1F15 - Request Offline
+  Description: 请求离线
+  Stream: 1
+  Function: 15
+  ReplyExpected: true
+
+- Name: S1F16 - Request Online
+  Description: 请求在线
+  Stream: 1
+  Function: 16
+  ReplyExpected: true
+
+- Name: S2F1 - Equipment Constant Request
+  Description: 请求设备常量
+  Stream: 2
+  Function: 1
+  ReplyExpected: true
+  SecsItem:
+    List:
+      - U1: [0]
+
+- Name: S2F2 - Equipment Constant Data
+  Description: 设备常量数据
+  Stream: 2
+  Function: 2
+  ReplyExpected: false
+  SecsItem:
+    Binary: [0]
+
+- Name: S2F3 - Equipment Constant Request (Multi)
+  Description: 请求多个设备常量
+  Stream: 2
+  Function: 3
+  ReplyExpected: true
+  SecsItem:
+    List:
+      - List:
+          - U4: [1]
+          - Binary: []
+
+- Name: S2F4 - Equipment Constant Ack
+  Description: 设备常量确认
+  Stream: 2
+  Function: 4
+  ReplyExpected: false
+  SecsItem:
+    Binary: [0]
+
+- Name: S2F5 - Define Data Variable Request
+  Description: 定义数据变量请求
+  Stream: 2
+  Function: 5
+  ReplyExpected: true
+  SecsItem:
+    List:
+      - U1: [0]
+      - U1: [0]
+
+- Name: S2F6 - Define Data Variable Confirm
+  Description: 定义数据变量确认
+  Stream: 2
+  Function: 6
+  ReplyExpected: false
+  SecsItem:
+    Binary: [0]
+
+- Name: S3F1 - Establish Communication Request
+  Description: 建立通信请求
+  Stream: 3
+  Function: 1
+  ReplyExpected: true
+  SecsItem:
+    List: []
+
+- Name: S3F2 - Establish Communication Confirm
+  Description: 建立通信确认
+  Stream: 3
+  Function: 2
+  ReplyExpected: false
+  SecsItem:
+    List:
+      - Binary: [0]
+      - List: []
+
+- Name: S5F1 - Alarm Report
+  Description: 报警报告
+  Stream: 5
+  Function: 1
+  ReplyExpected: false
+  SecsItem:
+    List:
+      - Binary: [1]
+      - U1: [1]
+      - ASCII: ["Sample alarm text"]
+
+- Name: S5F2 - Alarm Ack
+  Description: 报警确认
+  Stream: 5
+  Function: 2
+  ReplyExpected: false
+  SecsItem:
+    Binary: [0]
+
+- Name: S5F3 - Enable Alarm Request
+  Description: 启用报警请求
+  Stream: 5
+  Function: 3
+  ReplyExpected: true
+  SecsItem:
+    List:
+      - Binary: [128]
+      - U1: []
+
+- Name: S5F4 - Enable Alarm Ack
+  Description: 启用报警确认
+  Stream: 5
+  Function: 4
+  ReplyExpected: false
+  SecsItem:
+    Binary: [0]
+
+- Name: S5F5 - List Alarm Request
+  Description: 列出报警请求
+  Stream: 5
+  Function: 5
+  ReplyExpected: true
+  SecsItem:
+    U1: []
+
+- Name: S5F6 - List Alarm Data
+  Description: 报警列表数据
+  Stream: 5
+  Function: 6
+  ReplyExpected: false
+  SecsItem:
+    List:
+      - List:
+          - Binary: [1]
+          - U1: []
+          - ASCII: ["Sample alarm text"]
+
+- Name: S6F1 - Terminal Data Send
+  Description: 终端数据发送
+  Stream: 6
+  Function: 1
+  ReplyExpected: true
+  SecsItem:
+    List:
+      - U1: []
+      - U1: []
+      - ASCII: []
+      - List:
+          - Binary: []
+
+- Name: S6F2 - Terminal Data Ack
+  Description: 终端数据确认
+  Stream: 6
+  Function: 2
+  ReplyExpected: false
+  SecsItem:
+    Binary: [0]
+
+- Name: S6F11 - Ready To Load
+  Description: 准备加载
+  Stream: 6
+  Function: 11
+  ReplyExpected: false
+  SecsItem:
+    List:
+      - U4: [320]
+      - U2: [114]
+      - List:
+          - List:
+              - U2: [500]
+              - List:
+                  - U1: [1]
+
+- Name: S6F12 - Ready To Load Ack
+  Description: 准备加载确认
+  Stream: 6
+  Function: 12
+  ReplyExpected: true
+  SecsItem:
+    Binary: [0]
+
+- Name: S6F13 - Ready To Unload
+  Description: 准备卸载
+  Stream: 6
+  Function: 13
+  ReplyExpected: false
+  SecsItem:
+    List:
+      - U4: [320]
+      - U2: [114]
+      - List:
+          - List:
+              - U2: [500]
+              - List:
+                  - U1: [1]
+
+- Name: S6F14 - Ready To Unload Ack
+  Description: 准备卸载确认
+  Stream: 6
+  Function: 14
+  ReplyExpected: true
+  SecsItem:
+    Binary: [0]
+
+- Name: S7F1 - Process Program Request
+  Description: 程序请求
+  Stream: 7
+  Function: 1
+  ReplyExpected: true
+  SecsItem:
+    ASCII: []
+
+- Name: S7F2 - Process Program Data
+  Description: 程序数据
+  Stream: 7
+  Function: 2
+  ReplyExpected: false
+  SecsItem:
+    List:
+      - ASCII: []
+      - Binary: []
+
+- Name: S9F1 - Unsolicited Data
+  Description: 非请求数据
+  Stream: 9
+  Function: 1
+  ReplyExpected: false
+  SecsItem:
+    Binary: []
+
+- Name: S9F3 - Status Variable Name
+  Description: 状态变量名称
+  Stream: 9
+  Function: 3
+  ReplyExpected: false
+  SecsItem:
+    Binary: []
+
+- Name: S10F1 - Trace Data
+  Description: 轨迹数据
+  Stream: 10
+  Function: 1
+  ReplyExpected: false
+  SecsItem:
+    List:
+      - Binary: [0]
+      - ASCII: []
+
+- Name: S14F1 - Get Attribute Request
+  Description: 获取属性请求
+  Stream: 14
+  Function: 1
+  ReplyExpected: true
+  SecsItem:
+    List:
+      - ASCII: []
+      - ASCII: ["LoadPort"]
+      - List:
+          - ASCII: ["1"]
+      - List: []
+      - List: []
+
+- Name: S14F2 - Get Attribute Data
+  Description: 获取属性数据
+  Stream: 14
+  Function: 2
+  ReplyExpected: false
+  SecsItem:
+    List:
+      - List:
+          - List:
+              - ASCII: ["abc"]
+              - List:
+                  - List:
+                      - ASCII: ["abc"]
+                      - ASCII: ["abc"]
+      - List:
+          - U1: [0]
+          - List:
+              - List:
+                  - U1: [0]
+                  - ASCII: ["abc"]

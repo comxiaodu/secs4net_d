@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.HighPerformance.Buffers;
+using CommunityToolkit.HighPerformance.Buffers;
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -17,6 +17,13 @@ public static class SmlWriter
     {
         using var sw = new StringWriter(CultureInfo.InvariantCulture);
         msg.WriteSmlTo(sw);
+        return sw.ToString();
+    }
+
+    public static string GetSml(this Item item)
+    {
+        using var sw = new StringWriter(CultureInfo.InvariantCulture);
+        sw.Write(item, 0);
         return sw.ToString();
     }
 
@@ -327,7 +334,7 @@ public static class SmlWriter
 #endif
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static string ToSml(this SecsFormat format)
+    public static string ToSml(this SecsFormat format)
     {
         return format switch
         {
