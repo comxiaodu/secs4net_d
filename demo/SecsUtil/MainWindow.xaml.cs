@@ -31,28 +31,19 @@ public partial class MainWindow : Window
         _connectionManager.ConnectionChanged += OnConnectionChanged;
         _connectionManager.MessageReceived += OnMessageReceived;
         _connectionManager.RawDataReceived += OnRawDataReceived;
+        _connectionManager.AutoReplyFactory = CreateTemplateReply;
         _logger.Information("SecsUtil started");
         
         txtTemplateSearch.TextChanged += (s, e) => FilterTemplates();
         txtFilter.TextChanged += (s, e) => ApplyLogFilter();
+        txtTemplateFunction.TextChanged += (s, e) => UpdateAutoReplyEditorState();
         
-        treeTemplates.MouseDoubleClick += treeTemplates_MouseDoubleClick;
         treeTemplates.SelectedItemChanged += treeTemplates_SelectedItemChanged;
         
         _timerUpdateTimer = new System.Windows.Threading.DispatcherTimer();
         _timerUpdateTimer.Interval = TimeSpan.FromMilliseconds(100);
         _timerUpdateTimer.Tick += UpdateTimerStatus;
         
-        chkAutoReply.Checked += (s, e) => _connectionManager.AutoReply = true;
-        chkAutoReply.Unchecked += (s, e) => _connectionManager.AutoReply = false;
-    }
-
-    private void treeTemplates_MouseDoubleClick(object sender, MouseButtonEventArgs e)
-    {
-        if (_selectedTemplate != null && _connectionManager.IsConnected)
-        {
-            SendTemplateDirectly_Click(sender, e);
-        }
     }
 
     private void UpdateTimerStatus(object? sender, EventArgs e)
@@ -117,43 +108,7 @@ public partial class MainWindow : Window
 
     private void BuildTemplateTree()
     {
-        treeTemplates.Items.Clear();
-        
-        var grouped = _templates.GroupBy(t => t.Stream).OrderBy(g => g.Key);
-        
-        foreach (var streamGroup in grouped)
-        {
-            var streamNode = new TreeViewItem
-            {
-                Header = $"Stream {streamGroup.Key}",
-                IsExpanded = true
-            };
-            
-            var funcGroups = streamGroup.GroupBy(t => t.Function).OrderBy(g => g.Key);
-            
-            foreach (var funcGroup in funcGroups)
-            {
-                var funcNode = new TreeViewItem
-                {
-                    Header = $"F{funcGroup.Key}"
-                };
-                
-                foreach (var template in funcGroup)
-                {
-                    var textBlock = new TextBlock { Text = $"{template.Name}", ToolTip = template.Description };
-                    var templateNode = new TreeViewItem
-                    {
-                        Header = textBlock,
-                        Tag = template
-                    };
-                    funcNode.Items.Add(templateNode);
-                }
-                
-                streamNode.Items.Add(funcNode);
-            }
-            
-            treeTemplates.Items.Add(streamNode);
-        }
+        BuildTemplateNodes(_templates);
     }
 
     private void FilterTemplates()
@@ -164,16 +119,23 @@ public partial class MainWindow : Window
             BuildTemplateTree();
             return;
         }
-        
-        treeTemplates.Items.Clear();
-        
+
         var filtered = _templates.Where(t => 
             t.Name.ToLower().Contains(search) || 
             t.Description.ToLower().Contains(search) ||
-            $"S{t.Stream}F{t.Function}".ToLower().Contains(search)).ToList();
-        
-        var grouped = filtered.GroupBy(t => t.Stream).OrderBy(g => g.Key);
-        
+            $"S{t.Stream}F{t.Function}".ToLower().Contains(search) ||
+            GetPairHeader(t.Stream, GetPairFunction(t.Function)).ToLower().Contains(search)).ToList();
+
+        BuildTemplateNodes(filtered, expandAll: true);
+    }
+
+    private void BuildTemplateNodes(IEnumerable<MessageTemplate> templates, bool expandAll = false)
+    {
+        treeTemplates.Items.Clear();
+
+        var templateList = templates.ToList();
+        var grouped = templateList.GroupBy(t => t.Stream).OrderBy(g => g.Key);
+
         foreach (var streamGroup in grouped)
         {
             var streamNode = new TreeViewItem
@@ -181,32 +143,61 @@ public partial class MainWindow : Window
                 Header = $"Stream {streamGroup.Key}",
                 IsExpanded = true
             };
-            
-            var funcGroups = streamGroup.GroupBy(t => t.Function).OrderBy(g => g.Key);
-            
-            foreach (var funcGroup in funcGroups)
+
+            var pairGroups = streamGroup
+                .GroupBy(t => GetPairFunction(t.Function))
+                .OrderBy(g => g.Key);
+
+            foreach (var pairGroup in pairGroups)
             {
-                var funcNode = new TreeViewItem
+                var pairNode = new TreeViewItem
                 {
-                    Header = $"F{funcGroup.Key}"
+                    Header = GetPairHeader(streamGroup.Key, pairGroup.Key),
+                    IsExpanded = expandAll || pairGroup.Count() <= 4
                 };
-                
-                foreach (var template in funcGroup)
+
+                foreach (var template in pairGroup.OrderBy(t => t.Function).ThenBy(t => t.Name))
                 {
-                    var textBlock = new TextBlock { Text = $"{template.Name}", ToolTip = template.Description };
+                    var autoReply = template.AutoReply ? " [Auto]" : string.Empty;
+                    var textBlock = new TextBlock
+                    {
+                        Text = $"{template.Name}{autoReply}",
+                        ToolTip = template.Description
+                    };
                     var templateNode = new TreeViewItem
                     {
                         Header = textBlock,
                         Tag = template
                     };
-                    funcNode.Items.Add(templateNode);
+                    pairNode.Items.Add(templateNode);
                 }
-                
-                streamNode.Items.Add(funcNode);
+
+                streamNode.Items.Add(pairNode);
             }
-            
+
             treeTemplates.Items.Add(streamNode);
         }
+    }
+
+    private static byte GetPairFunction(byte function)
+    {
+        if (function == 0)
+            return 0;
+
+        return function % 2 == 0 ? (byte)(function - 1) : function;
+    }
+
+    private static string GetPairHeader(byte stream, byte pairFunction)
+    {
+        if (pairFunction == 0)
+            return $"S{stream}F0";
+
+        return $"S{stream}F{pairFunction}/F{pairFunction + 1}";
+    }
+
+    private static bool InferReplyExpected(byte function)
+    {
+        return function > 0 && function % 2 == 1;
     }
 
     private void treeTemplates_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
@@ -219,9 +210,10 @@ public partial class MainWindow : Window
             txtTemplateDesc.Text = template.Description;
             txtTemplateStream.Text = template.Stream.ToString();
             txtTemplateFunction.Text = template.Function.ToString();
-            chkTemplateReply.IsChecked = template.ReplyExpected;
+            chkTemplateAutoReply.IsChecked = template.AutoReply;
             txtTemplateSml.Document.Blocks.Clear();
             txtTemplateSml.Document.Blocks.Add(new Paragraph(new Run(template.SecsItem?.ToYamlString() ?? string.Empty)));
+            UpdateAutoReplyEditorState();
         }
     }
 
@@ -249,12 +241,12 @@ public partial class MainWindow : Window
             if (streamNode.Header.ToString() == $"Stream {template.Stream}")
             {
                 streamNode.IsExpanded = true;
-                foreach (TreeViewItem funcNode in streamNode.Items)
+                foreach (TreeViewItem pairNode in streamNode.Items)
                 {
-                    if (funcNode.Header.ToString() == $"F{template.Function}")
+                    if (pairNode.Header.ToString() == GetPairHeader(template.Stream, GetPairFunction(template.Function)))
                     {
-                        funcNode.IsExpanded = true;
-                        foreach (TreeViewItem templateNode in funcNode.Items)
+                        pairNode.IsExpanded = true;
+                        foreach (TreeViewItem templateNode in pairNode.Items)
                         {
                             if (templateNode.Tag == template)
                             {
@@ -275,9 +267,10 @@ public partial class MainWindow : Window
         txtTemplateDesc.Text = template.Description;
         txtTemplateStream.Text = template.Stream.ToString();
         txtTemplateFunction.Text = template.Function.ToString();
-        chkTemplateReply.IsChecked = template.ReplyExpected;
+        chkTemplateAutoReply.IsChecked = template.AutoReply;
         txtTemplateSml.Document.Blocks.Clear();
         txtTemplateSml.Document.Blocks.Add(new Paragraph(new Run(template.SecsItem?.ToYamlString() ?? string.Empty)));
+        UpdateAutoReplyEditorState();
     }
 
     private void treeTemplates_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
@@ -324,13 +317,11 @@ public partial class MainWindow : Window
         {
             var message = _selectedTemplate.CreateMessage();
             statusText.Text = "发送消息中...";
-            AddLog($"S{message.S}F{message.F} {_selectedTemplate.Name}", isReceived: false);
 
             var response = await _connectionManager.SendMessageAsync(message);
 
             if (response != null)
             {
-                AddLog($"S{response.S}F{response.F} {response.Name ?? ""}", isReceived: true);
                 txtMessageDetail.Text = $"响应消息:\r\n{response.SecsItem?.GetSml() ?? "无"}";
             }
 
@@ -385,6 +376,7 @@ public partial class MainWindow : Window
                 Stream = _selectedTemplate.Stream,
                 Function = _selectedTemplate.Function,
                 ReplyExpected = _selectedTemplate.ReplyExpected,
+                AutoReply = _selectedTemplate.AutoReply,
                 SecsItem = CloneSecsItemData(_selectedTemplate.SecsItem)
             };
         }
@@ -402,6 +394,7 @@ public partial class MainWindow : Window
                 Stream = _copiedTemplate.Stream,
                 Function = _copiedTemplate.Function,
                 ReplyExpected = _copiedTemplate.ReplyExpected,
+                AutoReply = _copiedTemplate.AutoReply,
                 SecsItem = CloneSecsItemData(_copiedTemplate.SecsItem)
             };
 
@@ -413,59 +406,8 @@ public partial class MainWindow : Window
 
     private void AddTemplateToTree(MessageTemplate template)
     {
-        TreeViewItem? streamNode = null;
-        
-        foreach (TreeViewItem item in treeTemplates.Items)
-        {
-            if (item.Header.ToString() == $"Stream {template.Stream}")
-            {
-                streamNode = item;
-                streamNode.IsExpanded = true;
-                break;
-            }
-        }
-
-        if (streamNode == null)
-        {
-            streamNode = new TreeViewItem
-            {
-                Header = $"Stream {template.Stream}",
-                IsExpanded = true
-            };
-            treeTemplates.Items.Add(streamNode);
-        }
-
-        TreeViewItem? funcNode = null;
-        foreach (TreeViewItem item in streamNode.Items)
-        {
-            if (item.Header.ToString() == $"F{template.Function}")
-            {
-                funcNode = item;
-                funcNode.IsExpanded = true;
-                break;
-            }
-        }
-
-        if (funcNode == null)
-        {
-            funcNode = new TreeViewItem
-            {
-                Header = $"F{template.Function}",
-                IsExpanded = true
-            };
-            streamNode.Items.Add(funcNode);
-        }
-
-        var textBlock = new TextBlock { Text = template.Name, ToolTip = template.Description };
-        var templateNode = new TreeViewItem
-        {
-            Header = textBlock,
-            Tag = template
-        };
-        funcNode.Items.Add(templateNode);
-        templateNode.IsSelected = true;
-        templateNode.BringIntoView();
-        
+        BuildTemplateTree();
+        SelectTemplateInTree(template);
         UpdateTemplateFields(template);
     }
 
@@ -551,7 +493,7 @@ public partial class MainWindow : Window
         if (targetItem?.Tag is MessageTemplate targetTemplate)
         {
             if (draggedTemplate.Stream == targetTemplate.Stream && 
-                draggedTemplate.Function == targetTemplate.Function &&
+                GetPairFunction(draggedTemplate.Function) == GetPairFunction(targetTemplate.Function) &&
                 draggedTemplate.Id != targetTemplate.Id)
             {
                 int oldIndex = _templates.FindIndex(t => t.Id == draggedTemplate.Id);
@@ -613,42 +555,7 @@ public partial class MainWindow : Window
 
     private void RemoveTemplateFromTree(MessageTemplate template)
     {
-        foreach (TreeViewItem streamNode in treeTemplates.Items)
-        {
-            if (streamNode.Header.ToString() == $"Stream {template.Stream}")
-            {
-                foreach (TreeViewItem funcNode in streamNode.Items)
-                {
-                    if (funcNode.Header.ToString() == $"F{template.Function}")
-                    {
-                        TreeViewItem? templateNode = null;
-                        foreach (TreeViewItem item in funcNode.Items)
-                        {
-                            if (item.Tag == template)
-                            {
-                                templateNode = item;
-                                break;
-                            }
-                        }
-
-                        if (templateNode != null)
-                        {
-                            funcNode.Items.Remove(templateNode);
-
-                            if (funcNode.Items.Count == 0)
-                            {
-                                streamNode.Items.Remove(funcNode);
-                                if (streamNode.Items.Count == 0)
-                                {
-                                    treeTemplates.Items.Remove(streamNode);
-                                }
-                            }
-                        }
-                        return;
-                    }
-                }
-            }
-        }
+        BuildTemplateTree();
     }
 
     private void StartRename(TreeViewItem item, TextBlock textBlock, MessageTemplate template)
@@ -722,18 +629,15 @@ public partial class MainWindow : Window
             _selectedTemplate.Description = txtTemplateDesc.Text;
             _selectedTemplate.Stream = byte.TryParse(txtTemplateStream.Text, out var s) ? s : (byte)1;
             _selectedTemplate.Function = byte.TryParse(txtTemplateFunction.Text, out var f) ? f : (byte)1;
-            _selectedTemplate.ReplyExpected = chkTemplateReply.IsChecked == true;
+            _selectedTemplate.ReplyExpected = InferReplyExpected(_selectedTemplate.Function);
+            _selectedTemplate.AutoReply = chkTemplateAutoReply.IsChecked == true && _selectedTemplate.Function % 2 == 0;
             
             var yamlText = new TextRange(txtTemplateSml.Document.ContentStart, txtTemplateSml.Document.ContentEnd).Text.Trim();
             if (!string.IsNullOrEmpty(yamlText))
             {
                 try
                 {
-                    var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
-                        .WithNamingConvention(YamlDotNet.Serialization.NamingConventions.NullNamingConvention.Instance)
-                        .WithTypeConverter(new SecsItemDataYamlConverter())
-                        .Build();
-                    _selectedTemplate.SecsItem = deserializer.Deserialize<SecsItemData>(yamlText);
+                    _selectedTemplate.SecsItem = DeserializeSecsItem(yamlText);
                 }
                 catch (Exception ex)
                 {
@@ -797,7 +701,7 @@ public partial class MainWindow : Window
         {
             try
             {
-                var imported = TemplateManager.ImportTemplates(dlg.FileName, overwrite: true);
+                var imported = TemplateManager.ImportTemplates(dlg.FileName, overwrite: false);
                 if (imported.Count == 0)
                 {
                     MessageBox.Show("未能从文件中解析出任何模板，请检查 YAML 格式是否正确。", "导入失败", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -825,9 +729,22 @@ public partial class MainWindow : Window
         txtTemplateDesc.Clear();
         txtTemplateStream.Text = "1";
         txtTemplateFunction.Text = "1";
-        chkTemplateReply.IsChecked = true;
+        chkTemplateAutoReply.IsChecked = false;
+        UpdateAutoReplyEditorState();
         txtTemplateSml.Document.Blocks.Clear();
         _selectedTemplate = null;
+    }
+
+    private void UpdateAutoReplyEditorState()
+    {
+        if (chkTemplateAutoReply == null || txtTemplateFunction == null)
+            return;
+
+        var isEvenFunction = byte.TryParse(txtTemplateFunction.Text, out var function) && function > 0 && function % 2 == 0;
+        chkTemplateAutoReply.IsEnabled = isEvenFunction;
+
+        if (!isEvenFunction)
+            chkTemplateAutoReply.IsChecked = false;
     }
 
     private void AddLog(string message, bool isReceived = false, bool isError = false, byte? stream = null, byte? function = null, byte[]? rawData = null, SecsMessage? secsMessage = null, int messageId = 0)
@@ -972,13 +889,8 @@ public partial class MainWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
-            AddLog($"S{e.Message.S}F{e.Message.F} {e.Message.Name ?? ""}", 
-                   e.IsReceived, false, e.Message.S, e.Message.F, null, e.Message, e.MessageId);
-            
-            if (!string.IsNullOrEmpty(e.Message.SecsItem?.GetSml()))
-            {
-                AddLog(e.Message.SecsItem.GetSml(), e.IsReceived);
-            }
+            var logMessage = BuildSecsLogMessage(e.Message);
+            AddLog(logMessage, e.IsReceived, false, e.Message.S, e.Message.F, null, e.Message, e.MessageId);
             
             txtMessageDetail.Text = $"消息ID: {e.MessageId:X8}\r\n" +
                                    $"方向: {(e.IsReceived ? "接收" : "发送")}\r\n" +
@@ -987,6 +899,18 @@ public partial class MainWindow : Window
                                    $"名称: {e.Message.Name ?? "未命名"}\r\n" +
                                    $"数据:\r\n{e.Message.SecsItem?.GetSml() ?? "无"}";
         });
+    }
+
+    private static string BuildSecsLogMessage(SecsMessage message)
+    {
+        var header = string.IsNullOrWhiteSpace(message.Name)
+            ? $"S{message.S}F{message.F}"
+            : $"S{message.S}F{message.F} {message.Name}";
+
+        var sml = message.SecsItem?.GetSml();
+        return string.IsNullOrWhiteSpace(sml)
+            ? header
+            : $"{header}\r\n{sml}";
     }
 
     private void OnRawDataReceived(object? sender, RawDataEventArgs e)
@@ -1164,12 +1088,7 @@ public partial class MainWindow : Window
                 return;
             }
 
-            var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
-                .WithNamingConvention(YamlDotNet.Serialization.NamingConventions.NullNamingConvention.Instance)
-                .WithTypeConverter(new SecsItemDataYamlConverter())
-                .Build();
-
-            var secsItemData = deserializer.Deserialize<SecsItemData>(yamlText);
+            var secsItemData = DeserializeSecsItem(yamlText);
             if (secsItemData != null && !string.IsNullOrWhiteSpace(secsItemData.Type))
             {
                 try
@@ -1262,6 +1181,223 @@ public partial class MainWindow : Window
     private void lstAutoComplete_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         InsertAutoCompleteSelection();
+    }
+
+    private SecsMessage? CreateTemplateReply(SecsMessage requestMessage)
+    {
+        var replyFunction = requestMessage.F + 1;
+        var template = _templates
+            .Where(t => t.Stream == requestMessage.S && t.Function == replyFunction && t.AutoReply)
+            .FirstOrDefault();
+
+        if (template == null)
+            return null;
+
+        var reply = template.CreateMessage();
+        reply.Name = $"Auto Reply - {template.Name}";
+        return reply;
+    }
+
+    private void InsertItem_Click(object sender, RoutedEventArgs e)
+    {
+        var type = GetSelectedItemType();
+        var values = txtItemValues.Text.Trim();
+        InsertEditorText(BuildYamlSnippet(type, values, GetCurrentIndent()));
+        txtTemplateSml.Focus();
+    }
+
+    private void InsertList_Click(object sender, RoutedEventArgs e)
+    {
+        InsertEditorText($"{GetCurrentIndent()}List:\n{GetCurrentIndent()}  ");
+        txtTemplateSml.Focus();
+    }
+
+    private void InsertAck_Click(object sender, RoutedEventArgs e)
+    {
+        InsertEditorText($"{GetCurrentIndent()}Binary: [0]");
+        txtTemplateSml.Focus();
+    }
+
+    private void InsertRemoteCommand_Click(object sender, RoutedEventArgs e)
+    {
+        var indent = GetCurrentIndent();
+        var snippet =
+            $"{indent}List:\n" +
+            $"{indent}  - ASCII: [\"COMMAND\"]\n" +
+            $"{indent}  - List:\n" +
+            $"{indent}      - List:\n" +
+            $"{indent}          - ASCII: [\"PARAM\"]\n" +
+            $"{indent}          - ASCII: [\"VALUE\"]";
+        InsertEditorText(snippet);
+        txtTemplateSml.Focus();
+    }
+
+    private void InsertEventReport_Click(object sender, RoutedEventArgs e)
+    {
+        var indent = GetCurrentIndent();
+        var snippet =
+            $"{indent}List:\n" +
+            $"{indent}  - U4: [0]\n" +
+            $"{indent}  - U4: [0]\n" +
+            $"{indent}  - List:\n" +
+            $"{indent}      - List:\n" +
+            $"{indent}          - U4: [0]\n" +
+            $"{indent}          - List: []";
+        InsertEditorText(snippet);
+        txtTemplateSml.Focus();
+    }
+
+    private void WrapSelectionList_Click(object sender, RoutedEventArgs e)
+    {
+        var selected = txtTemplateSml.Selection.Text.TrimEnd();
+        var indent = GetCurrentIndent();
+
+        if (string.IsNullOrWhiteSpace(selected))
+        {
+            InsertEditorText($"{indent}List:\n{indent}  ");
+            return;
+        }
+
+        var childIndent = indent + "  ";
+        var wrapped = $"{indent}List:\n" + string.Join("\n", selected.Split('\n').Select(line => childIndent + line.TrimEnd('\r')));
+        txtTemplateSml.Selection.Text = wrapped;
+        txtTemplateSml.Focus();
+    }
+
+    private void ValidateTemplate_Click(object sender, RoutedEventArgs e)
+    {
+        var yamlText = GetEditorText().Trim();
+        if (string.IsNullOrWhiteSpace(yamlText))
+        {
+            MessageBox.Show("请先输入 SecsItem YAML。", "校验", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            var data = DeserializeSecsItem(yamlText);
+            var item = data.ToSecsItem();
+            txtSmlPreview.Text = item.GetSml();
+            statusText.Text = "模板校验通过";
+            MessageBox.Show("模板校验通过。", "校验", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            txtSmlPreview.Text = $"解析错误: {ex.Message}";
+            statusText.Text = "模板校验失败";
+            MessageBox.Show($"模板校验失败: {ex.Message}", "校验", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void LoadSml_Click(object sender, RoutedEventArgs e)
+    {
+        var text = GetEditorText().Trim();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            MessageBox.Show("请先在编辑器中粘贴完整 SML 消息。", "从 SML 读取", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            var message = text.ToSecsMessage();
+            if (message == null)
+                throw new InvalidOperationException("无法解析 SML 消息。");
+
+            txtTemplateStream.Text = message.S.ToString();
+            txtTemplateFunction.Text = message.F.ToString();
+            chkTemplateAutoReply.IsChecked = false;
+            UpdateAutoReplyEditorState();
+
+            var data = SecsItemDataExtensions.FromSecsItem(message.SecsItem);
+            SetEditorText(data?.ToYamlString() ?? string.Empty);
+            txtSmlPreview.Text = message.SecsItem?.GetSml() ?? "无";
+            statusText.Text = "已从 SML 读取";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"SML 解析失败: {ex.Message}", "从 SML 读取", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private string GetSelectedItemType()
+    {
+        if (cmbItemType.SelectedItem is ComboBoxItem item && item.Content is string type)
+            return type;
+
+        return "List";
+    }
+
+    private string BuildYamlSnippet(string type, string values, string indent)
+    {
+        if (type == "List")
+            return $"{indent}List:\n{indent}  ";
+
+        var formattedValues = string.IsNullOrWhiteSpace(values)
+            ? string.Empty
+            : string.Join(", ", values.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(v => FormatYamlValue(type, v)));
+
+        return $"{indent}{type}: [{formattedValues}]";
+    }
+
+    private static string FormatYamlValue(string type, string value)
+    {
+        if (type == "ASCII")
+            return $"\"{value.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"";
+
+        if (type == "Boolean")
+            return value.Equals("1", StringComparison.OrdinalIgnoreCase) ? "true" :
+                value.Equals("0", StringComparison.OrdinalIgnoreCase) ? "false" :
+                value.ToLowerInvariant();
+
+        return value;
+    }
+
+    private string GetCurrentIndent()
+    {
+        var caret = txtTemplateSml.CaretPosition;
+        var lineStart = caret.GetLineStartPosition(0);
+        if (lineStart == null)
+            return string.Empty;
+
+        var lineText = new TextRange(lineStart, caret).Text;
+        return new string(lineText.TakeWhile(c => c == ' ').ToArray());
+    }
+
+    private string GetEditorText()
+    {
+        return new TextRange(txtTemplateSml.Document.ContentStart, txtTemplateSml.Document.ContentEnd).Text;
+    }
+
+    private void SetEditorText(string text)
+    {
+        txtTemplateSml.Document.Blocks.Clear();
+        txtTemplateSml.Document.Blocks.Add(new Paragraph(new Run(text)));
+    }
+
+    private void InsertEditorText(string text)
+    {
+        if (!txtTemplateSml.Selection.IsEmpty)
+        {
+            txtTemplateSml.Selection.Text = text;
+            return;
+        }
+
+        txtTemplateSml.CaretPosition.InsertTextInRun(text);
+    }
+
+    private static SecsItemData DeserializeSecsItem(string yamlText)
+    {
+        var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
+            .WithNamingConvention(YamlDotNet.Serialization.NamingConventions.NullNamingConvention.Instance)
+            .WithTypeConverter(new SecsItemDataYamlConverter())
+            .Build();
+
+        var data = deserializer.Deserialize<SecsItemData>(yamlText);
+        if (data == null || string.IsNullOrWhiteSpace(data.Type))
+            throw new InvalidOperationException("YAML 未包含有效的 SECS Item 类型。");
+
+        return data;
     }
 
     protected override void OnClosed(EventArgs e)

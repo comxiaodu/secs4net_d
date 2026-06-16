@@ -23,6 +23,7 @@
                 <Separator />
                 <MenuItem Header="_Import Templates" Click="ImportTemplates_Click" />
                 <MenuItem Header="_Export Templates" Click="ExportTemplates_Click" />
+                <MenuItem Header="Export _Selected Template" Click="ExportSelected_Click" />
                 <Separator />
                 <MenuItem Header="_Exit" Click="Exit_Click" />
             </MenuItem>
@@ -109,9 +110,6 @@
                                     <Button x:Name="btnConnect" Content="连接" Width="140" Height="36" Click="Connect_Click" />
                                     <Button x:Name="btnDisconnect" Content="断开" Width="140" Height="36" Click="Disconnect_Click" IsEnabled="False" />
                                 </StackPanel>
-
-                                <CheckBox x:Name="chkAutoReply" Content="自动回复" Margin="0,0,0,12" />
-                                <Label Content="收到奇数Function指令时自动回复对应偶数指令" FontSize="10" Foreground="{StaticResource TraeTextSecondary}" Margin="0,0,0,12" />
 
                                 <GroupBox Header="连接状态" Margin="0,0,0,12">
                                     <StackPanel>
@@ -326,8 +324,8 @@
                                     <TextBox Grid.Column="1" x:Name="txtTemplateStream" Text="1" />
                                     <Label Grid.Column="2" Content="Function:" />
                                     <TextBox Grid.Column="3" x:Name="txtTemplateFunction" Text="1" />
-                                    <CheckBox Grid.Column="4" x:Name="chkTemplateReply" Content="等待响应" IsChecked="True" />
                                 </Grid>
+                                <CheckBox x:Name="chkTemplateAutoReply" Content="收到对应奇数 Function 时自动回复此模板" Margin="72,0,0,8" />
                                 <Label Content="消息数据 (YAML格式):" Margin="0,4,0,2" />
                                 <Grid>
                                     <controls:YamlEditor x:Name="txtTemplateSml" MinHeight="150" TextChanged="txtTemplateSml_TextChanged" PreviewKeyDownEvent="txtTemplateSml_PreviewKeyDown" />
@@ -376,6 +374,47 @@
                                     </ListBox>
                                 </Grid>
                                 
+                                <GroupBox Header="Item 快速构造" Margin="0,8,0,4">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Grid Grid.Row="0" Margin="0,0,0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="92" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="72" />
+                                            </Grid.ColumnDefinitions>
+                                            <ComboBox Grid.Column="0" x:Name="cmbItemType" SelectedIndex="0" ToolTip="SECS Item 类型">
+                                                <ComboBoxItem Content="List" />
+                                                <ComboBoxItem Content="ASCII" />
+                                                <ComboBoxItem Content="Binary" />
+                                                <ComboBoxItem Content="Boolean" />
+                                                <ComboBoxItem Content="U1" />
+                                                <ComboBoxItem Content="U2" />
+                                                <ComboBoxItem Content="U4" />
+                                                <ComboBoxItem Content="I1" />
+                                                <ComboBoxItem Content="I2" />
+                                                <ComboBoxItem Content="I4" />
+                                                <ComboBoxItem Content="F4" />
+                                                <ComboBoxItem Content="F8" />
+                                            </ComboBox>
+                                            <TextBox Grid.Column="1" x:Name="txtItemValues" ToolTip="多个值用逗号分隔；List 类型可留空" />
+                                            <Button Grid.Column="2" Content="插入" Height="30" Click="InsertItem_Click" />
+                                        </Grid>
+                                        <WrapPanel Grid.Row="1" HorizontalAlignment="Right">
+                                            <Button Content="空 List" Width="72" Height="28" Click="InsertList_Click" />
+                                            <Button Content="ACK=0" Width="72" Height="28" Click="InsertAck_Click" />
+                                            <Button Content="S2F41" Width="72" Height="28" Click="InsertRemoteCommand_Click" />
+                                            <Button Content="S6F11" Width="72" Height="28" Click="InsertEventReport_Click" />
+                                            <Button Content="包成 List" Width="82" Height="28" Click="WrapSelectionList_Click" />
+                                            <Button Content="校验" Width="58" Height="28" Click="ValidateTemplate_Click" />
+                                            <Button Content="读 SML" Width="70" Height="28" Click="LoadSml_Click" />
+                                        </WrapPanel>
+                                    </Grid>
+                                </GroupBox>
+
                                 <Label Content="SML格式显示:" Margin="8,4,0,2" FontWeight="SemiBold" Foreground="{StaticResource TraeTextSecondary}" />
                                 <TextBox x:Name="txtSmlPreview" AcceptsReturn="True" IsReadOnly="True" FontFamily="Consolas" FontSize="11" Background="#f5f5f5" MinHeight="100" />
                             </StackPanel>

@@ -40,6 +40,7 @@ public class ConnectionManager : IDisposable
     public event EventHandler<ConnectionState>? ConnectionChanged;
     public event EventHandler<SecsMessageEventArgs>? MessageReceived;
     public event EventHandler<RawDataEventArgs>? RawDataReceived;
+    public Func<SecsMessage, SecsMessage?>? AutoReplyFactory { get; set; }
     
     public ushort? SessionId { get; private set; }
     public string PeerAddress { get; private set; } = string.Empty;
@@ -65,8 +66,6 @@ public class ConnectionManager : IDisposable
     public int T8Remaining => _t8Status.Remaining;
     public double T8Progress => _t8Status.Progress;
     
-    public bool AutoReply { get; set; } = false;
-
     public async Task ConnectAsync(ConnectionMode mode, string ipAddress, int port, ushort deviceId, 
         int t3 = 45000, int t5 = 10000, int t6 = 5000, int t7 = 10000, int t8 = 5000)
     {
@@ -126,12 +125,10 @@ public class ConnectionManager : IDisposable
             {
                 var primaryMsg = messageWrapper.PrimaryMessage;
                 _logger.Debug($"Received primary message: S{primaryMsg.S}F{primaryMsg.F}");
-                
-                MessageReceived?.Invoke(this, new SecsMessageEventArgs(primaryMsg, 0, true));
-                
-                if (AutoReply && primaryMsg.F % 2 == 1)
+
+                if (primaryMsg.F % 2 == 1)
                 {
-                    await SendAutoReplyAsync(primaryMsg);
+                    await SendAutoReplyAsync(messageWrapper);
                 }
             }
         }
@@ -145,27 +142,23 @@ public class ConnectionManager : IDisposable
         }
     }
     
-    private async Task SendAutoReplyAsync(SecsMessage requestMessage)
+    private async Task SendAutoReplyAsync(PrimaryMessageWrapper messageWrapper)
     {
         try
         {
-            if (_secsGem == null)
-                return;
+            var requestMessage = messageWrapper.PrimaryMessage;
                 
-            int replyFunction = requestMessage.F + 1;
-            
-            var replyMessage = new SecsMessage(requestMessage.S, (byte)replyFunction, false)
-            {
-                SecsItem = requestMessage.SecsItem
-            };
+            var replyMessage = AutoReplyFactory?.Invoke(requestMessage);
+            if (replyMessage == null)
+                return;
             
             _logger.Information($"Auto-replying S{requestMessage.S}F{requestMessage.F} -> S{replyMessage.S}F{replyMessage.F}");
             
-            await _secsGem.SendAsync(replyMessage);
+            await messageWrapper.TryReplyAsync(replyMessage);
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, $"Failed to send auto-reply for S{requestMessage.S}F{requestMessage.F}");
+            _logger.Error(ex, $"Failed to send auto-reply for S{messageWrapper.PrimaryMessage.S}F{messageWrapper.PrimaryMessage.F}");
         }
     }
 

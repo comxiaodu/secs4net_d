@@ -1,322 +1,598 @@
 - Name: S1F1 - Are You There
-  Description: 询问设备是否在线
+  Description: ACM/SECS link check primary message
   Stream: 1
   Function: 1
   ReplyExpected: true
   SecsItem:
     List: []
 
-- Name: S1F2 - On Line Data
-  Description: 响应在线数据
+- Name: S1F2 - Online Data
+  Description: Auto reply for S1F1 with MDLN and SOFTREV
   Stream: 1
   Function: 2
   ReplyExpected: false
+  AutoReply: true
   SecsItem:
     List:
-      - U2: [0]
-      - ASCII: ["ONLINE"]
+      - ASCII: ["ACM"]
+      - ASCII: ["5.3.00"]
 
 - Name: S1F13 - Establish Communications Request
-  Description: 建立通信请求 (Host)
+  Description: Establish SECS-II logical communication
   Stream: 1
   Function: 13
   ReplyExpected: true
   SecsItem:
-    List: []
+    List:
+      - ASCII: ["ACM"]
+      - ASCII: ["5.3.00"]
 
-- Name: S1F14 - Establish Communications Confirm
-  Description: 建立通信确认
+- Name: S1F14 - Establish Communications Acknowledge
+  Description: COMMACK=0, communication accepted
   Stream: 1
   Function: 14
   ReplyExpected: false
+  AutoReply: true
   SecsItem:
     List:
       - Binary: [0]
-      - List: []
+      - List:
+          - ASCII: ["ACM"]
+          - ASCII: ["5.3.00"]
 
 - Name: S1F15 - Request Offline
-  Description: 请求离线
+  Description: Request equipment offline control state
   Stream: 1
   Function: 15
   ReplyExpected: true
+  SecsItem:
+    List: []
 
-- Name: S1F16 - Request Online
-  Description: 请求在线
+- Name: S1F16 - Offline Acknowledge
+  Description: OFLACK=0
   Stream: 1
   Function: 16
-  ReplyExpected: true
-
-- Name: S2F1 - Equipment Constant Request
-  Description: 请求设备常量
-  Stream: 2
-  Function: 1
-  ReplyExpected: true
-  SecsItem:
-    List:
-      - U1: [0]
-
-- Name: S2F2 - Equipment Constant Data
-  Description: 设备常量数据
-  Stream: 2
-  Function: 2
   ReplyExpected: false
   SecsItem:
     Binary: [0]
 
-- Name: S2F3 - Equipment Constant Request (Multi)
-  Description: 请求多个设备常量
-  Stream: 2
+- Name: S1F17 - Request Online
+  Description: Request equipment online control state
+  Stream: 1
+  Function: 17
+  ReplyExpected: true
+  SecsItem:
+    List: []
+
+- Name: S1F18 - Online Acknowledge
+  Description: ONLACK=0
+  Stream: 1
+  Function: 18
+  ReplyExpected: false
+  SecsItem:
+    Binary: [0]
+
+- Name: S1F3 - Selected Equipment Status Request
+  Description: Request current SVID values
+  Stream: 1
   Function: 3
   ReplyExpected: true
   SecsItem:
     List:
-      - List:
-          - U4: [1]
-          - Binary: []
+      - U4: [100, 200, 201]
 
-- Name: S2F4 - Equipment Constant Ack
-  Description: 设备常量确认
-  Stream: 2
+- Name: S1F4 - Selected Equipment Status Data
+  Description: Carrier and load port status values
+  Stream: 1
   Function: 4
   ReplyExpected: false
   SecsItem:
-    Binary: [0]
+    List:
+      - ASCII: ["000001"]
+      - U1: [1]
+      - ASCII: ["LP1_RFID"]
 
-- Name: S2F5 - Define Data Variable Request
-  Description: 定义数据变量请求
+- Name: S2F33 - Define Report
+  Description: DATAID + report definition for ACM carrier variables
   Stream: 2
-  Function: 5
+  Function: 33
   ReplyExpected: true
   SecsItem:
     List:
-      - U1: [0]
-      - U1: [0]
+      - U4: [0]
+      - List:
+          - List:
+              - U4: [100]
+              - List:
+                  - U4: [100, 200, 201]
+          - List:
+              - U4: [5001]
+              - List:
+                  - U4: [100003, 100060]
 
-- Name: S2F6 - Define Data Variable Confirm
-  Description: 定义数据变量确认
+- Name: S2F34 - Define Report Acknowledge
+  Description: DRACK=0
   Stream: 2
-  Function: 6
+  Function: 34
   ReplyExpected: false
+  AutoReply: true
   SecsItem:
     Binary: [0]
 
-- Name: S3F1 - Establish Communication Request
-  Description: 建立通信请求
-  Stream: 3
-  Function: 1
+- Name: S2F35 - Link Event Report
+  Description: Link ACM CEID to report IDs
+  Stream: 2
+  Function: 35
   ReplyExpected: true
   SecsItem:
-    List: []
+    List:
+      - U4: [0]
+      - List:
+          - List:
+              - U4: [100003]
+              - List:
+                  - U4: [100]
+          - List:
+              - U4: [100060]
+              - List:
+                  - U4: [100]
+          - List:
+              - U4: [403002002]
+              - List:
+                  - U4: [5001]
 
-- Name: S3F2 - Establish Communication Confirm
-  Description: 建立通信确认
-  Stream: 3
-  Function: 2
+- Name: S2F36 - Link Event Report Acknowledge
+  Description: LRACK=0
+  Stream: 2
+  Function: 36
   ReplyExpected: false
+  AutoReply: true
+  SecsItem:
+    Binary: [0]
+
+- Name: S2F37 - Enable Event Report
+  Description: Enable selected ACM CEIDs
+  Stream: 2
+  Function: 37
+  ReplyExpected: true
+  SecsItem:
+    List:
+      - Boolean: [true]
+      - List:
+          - U4: [100003, 100060, 403002002]
+
+- Name: S2F38 - Enable Event Report Acknowledge
+  Description: ERACK=0
+  Stream: 2
+  Function: 38
+  ReplyExpected: false
+  AutoReply: true
+  SecsItem:
+    Binary: [0]
+
+- Name: S2F41 - JOB_MODE Remote Command
+  Description: ACM switches system to job run mode
+  Stream: 2
+  Function: 41
+  ReplyExpected: true
+  SecsItem:
+    List:
+      - ASCII: ["JOB_MODE"]
+      - List: []
+
+- Name: S2F41 - AUTO Remote Command LP1
+  Description: Set load port 1 to auto load mode
+  Stream: 2
+  Function: 41
+  ReplyExpected: true
+  SecsItem:
+    List:
+      - ASCII: ["AUTO"]
+      - List:
+          - List:
+              - ASCII: ["PORTID"]
+              - U1: [1]
+
+- Name: S2F41 - MANUAL Remote Command LP1
+  Description: Set load port 1 to manual load mode
+  Stream: 2
+  Function: 41
+  ReplyExpected: true
+  SecsItem:
+    List:
+      - ASCII: ["MANUAL"]
+      - List:
+          - List:
+              - ASCII: ["PORTID"]
+              - U1: [1]
+
+- Name: S2F41 - ALARM_RESET Remote Command
+  Description: Reset ACM alarms and warnings
+  Stream: 2
+  Function: 41
+  ReplyExpected: true
+  SecsItem:
+    List:
+      - ASCII: ["ALARM_RESET"]
+      - List: []
+
+- Name: S2F41 - LOAD Remote Command LP1
+  Description: Load map specified carrier on LP1
+  Stream: 2
+  Function: 41
+  ReplyExpected: true
+  SecsItem:
+    List:
+      - ASCII: ["LOAD"]
+      - List:
+          - List:
+              - ASCII: ["PORTID"]
+              - U1: [1]
+
+- Name: S2F41 - UNLOAD Remote Command LP1
+  Description: Unload specified carrier on LP1
+  Stream: 2
+  Function: 41
+  ReplyExpected: true
+  SecsItem:
+    List:
+      - ASCII: ["UNLOAD"]
+      - List:
+          - List:
+              - ASCII: ["PORTID"]
+              - U1: [1]
+
+- Name: S2F41 - SETLOTID Remote Command LP1
+  Description: Set Carrier LOTID
+  Stream: 2
+  Function: 41
+  ReplyExpected: true
+  SecsItem:
+    List:
+      - ASCII: ["SETLOTID"]
+      - List:
+          - List:
+              - ASCII: ["PORTID"]
+              - U1: [1]
+          - List:
+              - ASCII: ["LOTID"]
+              - ASCII: ["LP1_RFID"]
+
+- Name: S2F41 - START Remote Command LP1
+  Description: Start FA 300 process with PPSELECT
+  Stream: 2
+  Function: 41
+  ReplyExpected: true
+  SecsItem:
+    List:
+      - ASCII: ["START"]
+      - List:
+          - List:
+              - ASCII: ["PORTID"]
+              - U1: [1]
+          - List:
+              - ASCII: ["LOTID"]
+              - ASCII: ["LP1_RFID"]
+          - List:
+              - ASCII: ["PPSELECT"]
+              - ASCII: ["Production\\Sequence\\Bench.xml"]
+
+- Name: S2F42 - Host Command Acknowledge
+  Description: HCACK=0, no parameter errors
+  Stream: 2
+  Function: 42
+  ReplyExpected: false
+  AutoReply: true
   SecsItem:
     List:
       - Binary: [0]
       - List: []
 
-- Name: S5F1 - Alarm Report
-  Description: 报警报告
-  Stream: 5
-  Function: 1
-  ReplyExpected: false
+- Name: S3F17 - Proceed With Carrier
+  Description: Host confirms carrier verification can proceed
+  Stream: 3
+  Function: 17
+  ReplyExpected: true
   SecsItem:
     List:
-      - Binary: [1]
+      - U4: [0]
+      - ASCII: ["PROCEEDWITHCARRIER"]
+      - ASCII: ["000001"]
       - U1: [1]
-      - ASCII: ["Sample alarm text"]
+      - List: []
 
-- Name: S5F2 - Alarm Ack
-  Description: 报警确认
+- Name: S3F18 - Proceed With Carrier Acknowledge
+  Description: ACK for S3F17
+  Stream: 3
+  Function: 18
+  ReplyExpected: false
+  AutoReply: true
+  SecsItem:
+    List:
+      - Binary: [0]
+      - List: []
+
+- Name: S5F1 - Alarm Report Send
+  Description: Example ACM alarm set report
+  Stream: 5
+  Function: 1
+  ReplyExpected: true
+  SecsItem:
+    List:
+      - Binary: [128]
+      - U4: [900001]
+      - ASCII: ["ACM sample alarm"]
+
+- Name: S5F2 - Alarm Report Acknowledge
+  Description: ACKC5=0
   Stream: 5
   Function: 2
   ReplyExpected: false
+  AutoReply: true
   SecsItem:
     Binary: [0]
 
-- Name: S5F3 - Enable Alarm Request
-  Description: 启用报警请求
+- Name: S5F3 - Enable Alarm Send
+  Description: Enable all alarm reports
   Stream: 5
   Function: 3
   ReplyExpected: true
   SecsItem:
     List:
       - Binary: [128]
-      - U1: []
+      - List: []
 
-- Name: S5F4 - Enable Alarm Ack
-  Description: 启用报警确认
+- Name: S5F4 - Enable Alarm Acknowledge
+  Description: ACKC5=0
   Stream: 5
   Function: 4
   ReplyExpected: false
   SecsItem:
     Binary: [0]
 
-- Name: S5F5 - List Alarm Request
-  Description: 列出报警请求
-  Stream: 5
-  Function: 5
-  ReplyExpected: true
-  SecsItem:
-    U1: []
-
-- Name: S5F6 - List Alarm Data
-  Description: 报警列表数据
-  Stream: 5
-  Function: 6
-  ReplyExpected: false
-  SecsItem:
-    List:
-      - List:
-          - Binary: [1]
-          - U1: []
-          - ASCII: ["Sample alarm text"]
-
-- Name: S6F1 - Terminal Data Send
-  Description: 终端数据发送
-  Stream: 6
-  Function: 1
-  ReplyExpected: true
-  SecsItem:
-    List:
-      - U1: []
-      - U1: []
-      - ASCII: []
-      - List:
-          - Binary: []
-
-- Name: S6F2 - Terminal Data Ack
-  Description: 终端数据确认
-  Stream: 6
-  Function: 2
-  ReplyExpected: false
-  SecsItem:
-    Binary: [0]
-
-- Name: S6F11 - Ready To Load
-  Description: 准备加载
+- Name: S6F11 - Event Report JOB_MODE State 835
+  Description: ACM processing state machine changed after JOB_MODE
   Stream: 6
   Function: 11
-  ReplyExpected: false
+  ReplyExpected: true
   SecsItem:
     List:
-      - U4: [320]
-      - U2: [114]
+      - U4: [835]
+      - U4: [100011]
+      - List: []
+
+- Name: S6F11 - Event Report LP1 Carrier Arrived
+  Description: ACM LP1 carrier arrived event
+  Stream: 6
+  Function: 11
+  ReplyExpected: true
+  SecsItem:
+    List:
+      - U4: [2722]
+      - U4: [100003]
       - List:
           - List:
-              - U2: [500]
+              - U4: [100]
+              - List:
+                  - ASCII: ["000001"]
+                  - U1: [1]
+          - List:
+              - U4: [200]
               - List:
                   - U1: [1]
 
-- Name: S6F12 - Ready To Load Ack
-  Description: 准备加载确认
+- Name: S6F11 - Event Report Carrier ID Wait
+  Description: ACM LP1 waiting carrier id verification
+  Stream: 6
+  Function: 11
+  ReplyExpected: true
+  SecsItem:
+    List:
+      - U4: [2746]
+      - U4: [100060]
+      - List:
+          - List:
+              - U4: [100]
+              - List:
+                  - ASCII: ["000001"]
+                  - U1: [1]
+          - List:
+              - U4: [200]
+              - List:
+                  - U1: [1]
+          - List:
+              - U4: [201]
+              - List:
+                  - ASCII: ["000001"]
+
+- Name: S6F11 - Event Report PRJob Added
+  Description: ACM scheduler sends process job added event
+  Stream: 6
+  Function: 11
+  ReplyExpected: true
+  SecsItem:
+    List:
+      - U4: [1102]
+      - U4: [403002002]
+      - List: []
+
+- Name: S6F12 - Event Report Acknowledge
+  Description: ACKC6=0 for S6F11
   Stream: 6
   Function: 12
-  ReplyExpected: true
+  ReplyExpected: false
+  AutoReply: true
   SecsItem:
     Binary: [0]
 
-- Name: S6F13 - Ready To Unload
-  Description: 准备卸载
-  Stream: 6
-  Function: 13
+- Name: S7F19 - Current EPPD Request
+  Description: Host asks current equipment process program directory
+  Stream: 7
+  Function: 19
+  ReplyExpected: true
+  SecsItem:
+    List: []
+
+- Name: S7F20 - Current EPPD Data
+  Description: ACM current process program directory
+  Stream: 7
+  Function: 20
   ReplyExpected: false
   SecsItem:
     List:
-      - U4: [320]
-      - U2: [114]
+      - ASCII: ["Production\\Clean\\test_clean.xml"]
+      - ASCII: ["Production\\Sequence\\WholeProcess.xml"]
+
+- Name: S7F25 - Formatted Process Program Request
+  Description: Host asks WholeProcess.xml sequence recipe
+  Stream: 7
+  Function: 25
+  ReplyExpected: true
+  SecsItem:
+    ASCII: ["Production\\Sequence\\WholeProcess.xml"]
+
+- Name: S7F26 - Formatted Process Program Data
+  Description: ACM recipe content example for WholeProcess.xml
+  Stream: 7
+  Function: 26
+  ReplyExpected: false
+  SecsItem:
+    List:
+      - ASCII: ["Production\\Sequence\\WholeProcess.xml"]
+      - ASCII: ["Equipment"]
+      - ASCII: ["5.3.00"]
       - List:
           - List:
-              - U2: [500]
-              - List:
-                  - U1: [1]
+              - ASCII: ["Module"]
+              - U1: []
+              - ASCII: ["A,B,C,D"]
+          - List:
+              - ASCII: ["Recipe"]
+              - U1: []
+              - ASCII: ["Production\\Clean\\test_clean.xml"]
 
-- Name: S6F14 - Ready To Unload Ack
-  Description: 准备卸载确认
-  Stream: 6
-  Function: 14
-  ReplyExpected: true
-  SecsItem:
-    Binary: [0]
-
-- Name: S7F1 - Process Program Request
-  Description: 程序请求
-  Stream: 7
-  Function: 1
-  ReplyExpected: true
-  SecsItem:
-    ASCII: []
-
-- Name: S7F2 - Process Program Data
-  Description: 程序数据
-  Stream: 7
-  Function: 2
-  ReplyExpected: false
-  SecsItem:
-    List:
-      - ASCII: []
-      - Binary: []
-
-- Name: S9F1 - Unsolicited Data
-  Description: 非请求数据
-  Stream: 9
-  Function: 1
-  ReplyExpected: false
-  SecsItem:
-    Binary: []
-
-- Name: S9F3 - Status Variable Name
-  Description: 状态变量名称
-  Stream: 9
-  Function: 3
-  ReplyExpected: false
-  SecsItem:
-    Binary: []
-
-- Name: S10F1 - Trace Data
-  Description: 轨迹数据
+- Name: S10F1 - Terminal Request
+  Description: Terminal display request
   Stream: 10
   Function: 1
-  ReplyExpected: false
+  ReplyExpected: true
   SecsItem:
     List:
       - Binary: [0]
-      - ASCII: []
+      - ASCII: ["Hello from SecsUtil"]
 
-- Name: S14F1 - Get Attribute Request
-  Description: 获取属性请求
-  Stream: 14
-  Function: 1
-  ReplyExpected: true
-  SecsItem:
-    List:
-      - ASCII: []
-      - ASCII: ["LoadPort"]
-      - List:
-          - ASCII: ["1"]
-      - List: []
-      - List: []
-
-- Name: S14F2 - Get Attribute Data
-  Description: 获取属性数据
-  Stream: 14
+- Name: S10F2 - Terminal Request Acknowledge
+  Description: ACKC10=0
+  Stream: 10
   Function: 2
   ReplyExpected: false
   SecsItem:
+    Binary: [0]
+
+- Name: S14F9 - Create ControlJob Request
+  Description: ACM E94 ControlJob create request
+  Stream: 14
+  Function: 9
+  ReplyExpected: true
+  SecsItem:
     List:
+      - ASCII: [""]
+      - ASCII: ["ControlJob"]
       - List:
           - List:
-              - ASCII: ["abc"]
+              - ASCII: ["ObjID"]
+              - ASCII: ["CJ001"]
+          - List:
+              - ASCII: ["CarrierInputSpec"]
+              - List:
+                  - ASCII: ["LP1_RFID"]
+          - List:
+              - ASCII: ["MtrlOutSpec"]
+              - List: []
+          - List:
+              - ASCII: ["ProcessOrderMgmt"]
+              - U1: [3]
+          - List:
+              - ASCII: ["StartMethod"]
+              - Boolean: [true]
+          - List:
+              - ASCII: ["ProcessingCtrlSpec"]
               - List:
                   - List:
-                      - ASCII: ["abc"]
-                      - ASCII: ["abc"]
+                      - ASCII: ["JobIDX0001"]
+                      - List: []
+                      - List: []
+
+- Name: S14F10 - Create ControlJob Acknowledge
+  Description: ACM E94 ControlJob create response
+  Stream: 14
+  Function: 10
+  ReplyExpected: false
+  AutoReply: true
+  SecsItem:
+    List:
+      - ASCII: ["ControlJob:CJ001"]
+      - List:
+          - List:
+              - ASCII: ["ObjID"]
+              - ASCII: ["CJ001"]
+          - List:
+              - ASCII: ["CarrierInputSpec"]
+              - List:
+                  - ASCII: ["LP1_RFID"]
+          - List:
+              - ASCII: ["MtrlOutSpec"]
+              - List: []
+          - List:
+              - ASCII: ["ProcessOrderMgmt"]
+              - U1: [3]
+          - List:
+              - ASCII: ["StartMethod"]
+              - Boolean: [true]
+          - List:
+              - ASCII: ["ProcessingCtrlSpec"]
+              - List:
+                  - List:
+                      - ASCII: ["JobIDX0001"]
+                      - List: []
+                      - List: []
       - List:
           - U1: [0]
+          - List: []
+
+- Name: S16F15 - PRJob Multi Create
+  Description: ACM E40 ProcessJob multi create request
+  Stream: 16
+  Function: 15
+  ReplyExpected: true
+  SecsItem:
+    List:
+      - U4: [10]
+      - List:
           - List:
+              - ASCII: ["JobIDX0001"]
+              - Binary: [13]
               - List:
-                  - U1: [0]
-                  - ASCII: ["abc"]
+                  - List:
+                      - ASCII: ["LP1_RFID"]
+                      - U1: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]
+              - List:
+                  - U1: [1]
+                  - ASCII: ["Production\\Sequence\\WholeProcess.xml"]
+                  - List: []
+              - Boolean: [true]
+              - List: []
+
+- Name: S16F16 - PRJob Multi Create Acknowledge
+  Description: ACM E40 ProcessJob create response
+  Stream: 16
+  Function: 16
+  ReplyExpected: false
+  AutoReply: true
+  SecsItem:
+    List:
+      - List:
+          - ASCII: ["JobIDX0001"]
+      - List:
+          - Boolean: [true]
+          - List: []

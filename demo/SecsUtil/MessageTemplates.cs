@@ -268,6 +268,7 @@ public class MessageTemplate
     public byte Stream { get; set; }
     public byte Function { get; set; }
     public bool ReplyExpected { get; set; } = true;
+    public bool AutoReply { get; set; }
     public SecsItemData? SecsItem { get; set; }
     
     public SecsMessage CreateMessage()
@@ -641,6 +642,7 @@ public class TemplateManager
                 Stream = 1,
                 Function = 2,
                 ReplyExpected = false,
+                AutoReply = true,
                 SecsItem = new SecsItemData
                 {
                     Type = "List",
@@ -692,6 +694,7 @@ public class TemplateManager
                 Stream = 1,
                 Function = 14,
                 ReplyExpected = false,
+                AutoReply = true,
                 SecsItem = new SecsItemData { Type = "ASCII", Values = new List<object> { "Communication OK" } }
             },
             new MessageTemplate
