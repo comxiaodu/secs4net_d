@@ -23,11 +23,15 @@ public partial class MainWindow : Window
     private List<MessageTemplate> _templates = new();
     private MessageTemplate? _selectedTemplate;
     private System.Windows.Threading.DispatcherTimer? _timerUpdateTimer;
+    private bool _templateSourceDirty;
+    private bool _loadingTemplateSource;
 
     public MainWindow()
     {
         InitializeComponent();
         LoadTemplates();
+        LoadTemplateSource();
+        UpdateConnectionUiState(ConnectionState.NotConnected);
         _connectionManager.ConnectionChanged += OnConnectionChanged;
         _connectionManager.MessageReceived += OnMessageReceived;
         _connectionManager.RawDataReceived += OnRawDataReceived;
@@ -358,6 +362,7 @@ public partial class MainWindow : Window
                 _templates.Remove(_selectedTemplate);
                 BuildTemplateTree();
                 ClearTemplateFields();
+                LoadTemplateSource();
             }
         }
     }
@@ -401,6 +406,7 @@ public partial class MainWindow : Window
             TemplateManager.AddTemplate(newTemplate);
             _templates.Add(newTemplate);
             AddTemplateToTree(newTemplate);
+            LoadTemplateSource();
         }
     }
 
@@ -506,6 +512,7 @@ public partial class MainWindow : Window
                     TemplateManager.SaveAllTemplates(_templates);
                     BuildTemplateTree();
                     SelectTemplateInTree(draggedTemplate);
+                    LoadTemplateSource();
                 }
             }
         }
@@ -551,6 +558,7 @@ public partial class MainWindow : Window
         _templates.Remove(template);
         RemoveTemplateFromTree(template);
         ClearTemplateFields();
+        LoadTemplateSource();
     }
 
     private void RemoveTemplateFromTree(MessageTemplate template)
@@ -585,6 +593,9 @@ public partial class MainWindow : Window
                     TemplateManager.UpdateTemplate(template);
                     _templates = TemplateManager.LoadAllTemplates();
                     UpdateTemplateFields(template);
+                    BuildTemplateTree();
+                    SelectTemplateInTree(template);
+                    LoadTemplateSource();
                 }
                 item.Header = textBlock;
                 e.Handled = true;
@@ -653,6 +664,7 @@ public partial class MainWindow : Window
             TemplateManager.UpdateTemplate(_selectedTemplate);
             BuildTemplateTree();
             SelectTemplateInTree(_selectedTemplate);
+            LoadTemplateSource();
             MessageBox.Show("模板已保存");
         }
     }
@@ -712,6 +724,7 @@ public partial class MainWindow : Window
                 txtTemplateFileName.Text = System.IO.Path.GetFileName(dlg.FileName);
                 BuildTemplateTree();
                 ClearTemplateFields();
+                LoadTemplateSource();
                 MessageBox.Show($"已覆盖导入 {imported.Count} 个模板");
             }
             catch (Exception ex)
@@ -722,6 +735,215 @@ public partial class MainWindow : Window
     }
 
 
+
+    private void LoadTemplateSource()
+    {
+        try
+        {
+            if (!File.Exists(TemplateManager.DefaultTemplateFile))
+                TemplateManager.SaveAllTemplates(_templates);
+
+            var yaml = File.ReadAllText(TemplateManager.DefaultTemplateFile, Encoding.UTF8);
+            _loadingTemplateSource = true;
+            txtTemplateSource.SetHighlightedText(yaml);
+            _templateSourceDirty = false;
+            statusText.Text = $"源码已加载: {Path.GetFileName(TemplateManager.DefaultTemplateFile)}";
+        }
+        catch (Exception ex)
+        {
+            statusText.Text = $"源码加载失败: {ex.Message}";
+        }
+        finally
+        {
+            _loadingTemplateSource = false;
+        }
+    }
+
+    private void txtTemplateSource_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_loadingTemplateSource)
+            return;
+
+        _templateSourceDirty = true;
+        statusText.Text = "源码已修改";
+    }
+
+    private void ReloadTemplateSource_Click(object sender, RoutedEventArgs e)
+    {
+        if (_templateSourceDirty &&
+            MessageBox.Show("源码尚未保存，确定要重新加载文件吗？", "重新加载源码", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        LoadTemplateSource();
+    }
+
+    private void SaveTemplateSource_Click(object sender, RoutedEventArgs e)
+    {
+        var yaml = GetTemplateSourceText();
+        var validation = ValidateTemplateSourceYaml(yaml);
+        if (!validation.IsValid)
+        {
+            HighlightTemplateSource(yaml, validation.Line);
+            MessageBox.Show(validation.Message, "源码校验失败", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(TemplateManager.DefaultTemplateFile) ?? string.Empty);
+        File.WriteAllText(TemplateManager.DefaultTemplateFile, yaml, Encoding.UTF8);
+        _templateSourceDirty = false;
+        HighlightTemplateSource(yaml);
+        statusText.Text = "源码已保存";
+    }
+
+    private void ValidateTemplateSource_Click(object sender, RoutedEventArgs e)
+    {
+        var yaml = GetTemplateSourceText();
+        var validation = ValidateTemplateSourceYaml(yaml);
+        HighlightTemplateSource(yaml, validation.Line);
+
+        if (validation.IsValid)
+        {
+            statusText.Text = "源码校验通过";
+            MessageBox.Show(validation.Message, "源码校验", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        else
+        {
+            statusText.Text = "源码校验失败";
+            MessageBox.Show(validation.Message, "源码校验失败", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void ApplyTemplateSource_Click(object sender, RoutedEventArgs e)
+    {
+        SaveTemplateSource_Click(sender, e);
+        if (_templateSourceDirty)
+            return;
+
+        _templates = TemplateManager.LoadAllTemplates();
+        BuildTemplateTree();
+        ClearTemplateFields();
+        statusText.Text = $"指令库已刷新，共 {_templates.Count} 个模板";
+    }
+
+    private void LocateTemplateSource_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedTemplate == null)
+        {
+            MessageBox.Show("请先在指令库中选择一个模板。", "定位模板", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var found = SelectInTemplateSource($"Name: {_selectedTemplate.Name}");
+        if (!found)
+            found = SelectInTemplateSource(_selectedTemplate.Name);
+
+        statusText.Text = found ? $"已定位模板: {_selectedTemplate.Name}" : "源码中未找到当前模板";
+    }
+
+    private void txtSourceSearch_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            SelectInTemplateSource(txtSourceSearch.Text);
+            e.Handled = true;
+        }
+    }
+
+    private string GetTemplateSourceText()
+    {
+        return new TextRange(txtTemplateSource.Document.ContentStart, txtTemplateSource.Document.ContentEnd).Text.TrimEnd('\r', '\n');
+    }
+
+    private void HighlightTemplateSource(string yaml, int? errorLine = null)
+    {
+        _loadingTemplateSource = true;
+        txtTemplateSource.SetHighlightedText(yaml, errorLine);
+        _loadingTemplateSource = false;
+    }
+
+    private (bool IsValid, string Message, int? Line) ValidateTemplateSourceYaml(string yaml)
+    {
+        try
+        {
+            var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
+                .WithNamingConvention(YamlDotNet.Serialization.NamingConventions.NullNamingConvention.Instance)
+                .IgnoreUnmatchedProperties()
+                .WithTypeConverter(new SecsItemDataYamlConverter())
+                .Build();
+
+            var templates = deserializer.Deserialize<List<MessageTemplate>>(yaml) ?? new List<MessageTemplate>();
+            if (templates.Count == 0)
+                return (false, "源码中没有解析到任何模板。", null);
+
+            foreach (var template in templates)
+            {
+                if (string.IsNullOrWhiteSpace(template.Name))
+                    return (false, "存在未填写 Name 的模板。", null);
+
+                if (template.Stream == 0)
+                    return (false, $"模板 {template.Name} 的 Stream 无效。", null);
+
+                if (template.SecsItem != null)
+                    _ = template.SecsItem.ToSecsItem();
+            }
+
+            return (true, $"源码校验通过，共 {templates.Count} 个模板。", null);
+        }
+        catch (YamlDotNet.Core.YamlException ex)
+        {
+            int? line = ex.Start.Line > 0 ? ex.Start.Line : null;
+            return (false, $"YAML 语法错误: {ex.Message}", line);
+        }
+        catch (Exception ex)
+        {
+            return (false, $"模板内容错误: {ex.Message}", null);
+        }
+    }
+
+    private bool SelectInTemplateSource(string search)
+    {
+        if (string.IsNullOrWhiteSpace(search))
+            return false;
+
+        var text = GetTemplateSourceText();
+        var index = text.IndexOf(search, StringComparison.OrdinalIgnoreCase);
+        if (index < 0)
+            return false;
+
+        var start = GetTextPointerAtOffset(txtTemplateSource.Document.ContentStart, index);
+        var end = GetTextPointerAtOffset(txtTemplateSource.Document.ContentStart, index + search.Length);
+        if (start == null || end == null)
+            return false;
+
+        txtTemplateSource.Focus();
+        txtTemplateSource.Selection.Select(start, end);
+        start.Paragraph?.BringIntoView();
+        return true;
+    }
+
+    private static TextPointer? GetTextPointerAtOffset(TextPointer start, int targetOffset)
+    {
+        var navigator = start;
+        var offset = 0;
+
+        while (navigator != null)
+        {
+            if (navigator.GetPointerContext(LogicalDirection.Forward) == TextPointerContext.Text)
+            {
+                var text = navigator.GetTextInRun(LogicalDirection.Forward);
+                if (offset + text.Length >= targetOffset)
+                    return navigator.GetPositionAtOffset(targetOffset - offset);
+
+                offset += text.Length;
+            }
+
+            navigator = navigator.GetNextContextPosition(LogicalDirection.Forward);
+        }
+
+        return null;
+    }
 
     private void ClearTemplateFields()
     {
@@ -855,13 +1077,10 @@ public partial class MainWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
-            lblStatus.Content = state.ToString();
-            btnConnect.IsEnabled = state == ConnectionState.NotConnected;
-            btnDisconnect.IsEnabled = state != ConnectionState.NotConnected;
+            UpdateConnectionUiState(state);
             
             if (state == ConnectionState.Selected)
             {
-                statusLed.Fill = Brushes.Green;
                 lblMode.Content = _connectionManager.Mode == ConnectionMode.Active ? "Active" : "Passive";
                 lblPeer.Content = _connectionManager.PeerAddress;
                 _timerUpdateTimer?.Start();
@@ -871,7 +1090,6 @@ public partial class MainWindow : Window
             }
             else if (state == ConnectionState.NotConnected)
             {
-                statusLed.Fill = Brushes.Gray;
                 lblMode.Content = "-";
                 lblPeer.Content = "-";
                 _timerUpdateTimer?.Stop();
@@ -899,6 +1117,24 @@ public partial class MainWindow : Window
                                    $"名称: {e.Message.Name ?? "未命名"}\r\n" +
                                    $"数据:\r\n{e.Message.SecsItem?.GetSml() ?? "无"}";
         });
+    }
+
+    private void UpdateConnectionUiState(ConnectionState state)
+    {
+        lblStatus.Content = state.ToString();
+        btnConnect.IsEnabled = state == ConnectionState.NotConnected;
+        btnDisconnect.IsEnabled = state != ConnectionState.NotConnected;
+
+        var (brush, text) = state switch
+        {
+            ConnectionState.Selected => (Brushes.DodgerBlue, "已连接"),
+            ConnectionState.NotConnected => (new SolidColorBrush(Color.FromRgb(209, 52, 56)), "未连接"),
+            _ => (new SolidColorBrush(Color.FromRgb(255, 185, 0)), "连接中")
+        };
+
+        statusLed.Fill = brush;
+        bottomConnectionLed.Fill = brush;
+        bottomConnectionText.Text = text;
     }
 
     private static string BuildSecsLogMessage(SecsMessage message)
@@ -944,21 +1180,21 @@ public partial class MainWindow : Window
         });
     }
 
-    private void Connect_Click(object sender, RoutedEventArgs e)
+    private async void Connect_Click(object sender, RoutedEventArgs e)
     {
         try
         {
             var mode = rbActive.IsChecked == true ? ConnectionMode.Active : ConnectionMode.Passive;
             var ip = txtIpAddress.Text;
             var port = int.Parse(txtPort.Text);
-            var deviceId = byte.Parse(txtDeviceId.Text);
+            var deviceId = ushort.Parse(txtDeviceId.Text);
             var t3 = int.Parse(txtT3.Text);
             var t5 = int.Parse(txtT5.Text);
             var t6 = int.Parse(txtT6.Text);
             var t7 = int.Parse(txtT7.Text);
 
-            _connectionManager.Connect(mode, ip, port, deviceId, t3, t5, t6, t7);
-            
+            UpdateConnectionUiState(ConnectionState.Connecting);
+
             if (mode == ConnectionMode.Active)
             {
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 正在连接到 {ip}:{port} (DeviceId: {deviceId})...", isError: false);
@@ -967,18 +1203,30 @@ public partial class MainWindow : Window
             {
                 AddLog($"[{DateTime.Now:HH:mm:ss}] 正在监听 {ip}:{port} (DeviceId: {deviceId})...", isError: false);
             }
+
+            await _connectionManager.ConnectAsync(mode, ip, port, deviceId, t3, t5, t6, t7);
         }
         catch (Exception ex)
         {
+            UpdateConnectionUiState(ConnectionState.NotConnected);
             AddLog($"[{DateTime.Now:HH:mm:ss}] 连接失败: {ex.Message}", isError: true);
             MessageBox.Show($"连接失败: {ex.Message}");
         }
     }
 
-    private void Disconnect_Click(object sender, RoutedEventArgs e)
+    private async void Disconnect_Click(object sender, RoutedEventArgs e)
     {
-        _connectionManager.Disconnect();
-        AddLog("已断开连接");
+        btnDisconnect.IsEnabled = false;
+
+        try
+        {
+            await _connectionManager.DisconnectAsync();
+        }
+        catch (Exception ex)
+        {
+            AddLog($"[{DateTime.Now:HH:mm:ss}] 断开失败: {ex.Message}", isError: true);
+            MessageBox.Show($"断开失败: {ex.Message}");
+        }
     }
 
     private void ClearLog_Click(object sender, RoutedEventArgs e)

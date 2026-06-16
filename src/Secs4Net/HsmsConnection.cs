@@ -519,6 +519,9 @@ public sealed class HsmsConnection : ISecsConnection, IAsyncDisposable
     Task ISecsConnection.SendAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellation)
         => SendAsync(buffer, cancellation);
 
+    private Socket GetSocketForSend()
+        => _socket ?? throw new SocketException((int)SocketError.NotConnected);
+
 #if NET
     private async Task SendAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellation)
     {
@@ -527,8 +530,22 @@ public sealed class HsmsConnection : ISecsConnection, IAsyncDisposable
         {
             do
             {
-                Debug.Assert(_socket != null);
-                var length = await _socket.SendAsync(buffer, SocketFlags.None, cancellation).ConfigureAwait(false);
+                var socket = GetSocketForSend();
+                int length;
+                try
+                {
+                    length = await socket.SendAsync(buffer, SocketFlags.None, cancellation).ConfigureAwait(false);
+                }
+                catch (ObjectDisposedException)
+                {
+                    throw new SocketException((int)SocketError.NotConnected);
+                }
+
+                if (length <= 0)
+                {
+                    throw new SocketException((int)SocketError.ConnectionReset);
+                }
+
                 Debug.WriteLine($"Socket sent {length} bytes.");
                 buffer = buffer[length..];
             } while (!buffer.IsEmpty);
@@ -550,8 +567,22 @@ public sealed class HsmsConnection : ISecsConnection, IAsyncDisposable
         {
             do
             {
-                Debug.Assert(_socket != null);
-                var length = await _socket.SendAsync(arr, SocketFlags.None).WithCancellation(cancellation).ConfigureAwait(false);
+                var socket = GetSocketForSend();
+                int length;
+                try
+                {
+                    length = await socket.SendAsync(arr, SocketFlags.None).WithCancellation(cancellation).ConfigureAwait(false);
+                }
+                catch (ObjectDisposedException)
+                {
+                    throw new SocketException((int)SocketError.NotConnected);
+                }
+
+                if (length <= 0)
+                {
+                    throw new SocketException((int)SocketError.ConnectionReset);
+                }
+
                 arr = new ArraySegment<byte>(arr.Array, arr.Offset + length, arr.Count - length);
                 Debug.WriteLine($"Socket sent {length} bytes.");
             } while (arr.Count > 0);

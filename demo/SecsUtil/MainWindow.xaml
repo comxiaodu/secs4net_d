@@ -292,8 +292,10 @@
             <GridSplitter Grid.Column="3" Background="{StaticResource TraeBorder}" Width="8" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
 
             <Border Grid.Column="4" Margin="0,8,8,8" CornerRadius="8" Background="{StaticResource TraeSurface}" BorderBrush="{StaticResource TraeBorder}" BorderThickness="1">
-                <ScrollViewer Padding="12">
-                    <StackPanel>
+                <TabControl Margin="8" Background="Transparent">
+                    <TabItem Header="模板详情">
+                        <ScrollViewer Padding="4">
+                            <StackPanel>
                         <GroupBox Header="模板详情" Margin="0,0,0,8">
                             <StackPanel>
                                 <Grid Margin="0,0,0,8">
@@ -424,14 +426,42 @@
                             <Button Content="保存" Width="80" Height="32" Click="SaveTemplate_Click" />
                             <Button Content="发送" Width="80" Height="32" Click="SendTemplate_Click" />
                         </StackPanel>
-                    </StackPanel>
-                </ScrollViewer>
+
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <TabItem Header="模板源码">
+                        <ScrollViewer Padding="4">
+                        <GroupBox Header="模板源码" Margin="0,0,0,8">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <WrapPanel Grid.Row="0" HorizontalAlignment="Right" Margin="0,0,0,6">
+                                    <Button Content="重载" Width="64" Height="28" Click="ReloadTemplateSource_Click" />
+                                    <Button Content="保存源码" Width="82" Height="28" Click="SaveTemplateSource_Click" />
+                                    <Button Content="校验源码" Width="82" Height="28" Click="ValidateTemplateSource_Click" />
+                                    <Button Content="定位模板" Width="82" Height="28" Click="LocateTemplateSource_Click" />
+                                    <Button Content="刷新指令库" Width="92" Height="28" Click="ApplyTemplateSource_Click" />
+                                </WrapPanel>
+                                <TextBox Grid.Row="1" x:Name="txtSourceSearch" ToolTip="搜索源码" Margin="0,0,0,6" KeyDown="txtSourceSearch_KeyDown" />
+                                <controls:YamlEditor Grid.Row="2" x:Name="txtTemplateSource" MinHeight="620" TextChanged="txtTemplateSource_TextChanged" />
+                            </Grid>
+                        </GroupBox>
+                        </ScrollViewer>
+                    </TabItem>
+                </TabControl>
             </Border>
         </Grid>
 
         <StatusBar Grid.Row="2" Height="24" Background="{StaticResource TraeSurfaceLight}">
             <StatusBarItem HorizontalAlignment="Left">
                 <StackPanel Orientation="Horizontal">
+                    <Ellipse x:Name="bottomConnectionLed" Width="11" Height="11" Fill="#D13438" Stroke="#66000000" StrokeThickness="1" Margin="0,0,6,0" VerticalAlignment="Center" />
+                    <TextBlock x:Name="bottomConnectionText" Text="未连接" Foreground="{StaticResource TraeTextSecondary}" Margin="0,0,14,0" />
                     <TextBlock Text="指令库: " Foreground="{StaticResource TraeTextDisabled}" />
                     <TextBlock x:Name="txtTemplateFileName" Text="default.yaml" Foreground="{StaticResource TraePrimary}" FontWeight="Medium" />
                 </StackPanel>

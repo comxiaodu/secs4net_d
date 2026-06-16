@@ -110,6 +110,7 @@ public class ConnectionManager : IDisposable
         catch (Exception ex)
         {
             _logger.Error(ex, $"Failed to connect in {mode} mode");
+            await DisconnectAsync();
             throw;
         }
     }
@@ -162,21 +163,19 @@ public class ConnectionManager : IDisposable
         }
     }
 
-    public void Connect(ConnectionMode mode, string ipAddress, int port, byte deviceId,
+    public void Connect(ConnectionMode mode, string ipAddress, int port, ushort deviceId,
         int t3 = 45000, int t5 = 10000, int t6 = 5000, int t7 = 10000)
     {
-        ConnectAsync(mode, ipAddress, port, deviceId, t3, t5, t6, t7).Wait();
+        ConnectAsync(mode, ipAddress, port, deviceId, t3, t5, t6, t7).GetAwaiter().GetResult();
     }
 
     public async Task DisconnectAsync()
     {
-        _cancellationTokenSource?.Cancel();
-        
-        _cancellationTokenSource?.Dispose();
-        _cancellationTokenSource = null;
-        
-        _messageReceiveTask = null;
-        
+        var receiveTask = _messageReceiveTask;
+        var cancellationTokenSource = _cancellationTokenSource;
+
+        cancellationTokenSource?.Cancel();
+
         if (_connection != null)
         {
             _connection.ConnectionChanged -= OnConnectionChanged;
@@ -192,6 +191,21 @@ public class ConnectionManager : IDisposable
             
             _connection = null;
         }
+
+        if (receiveTask != null)
+        {
+            try
+            {
+                await receiveTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        cancellationTokenSource?.Dispose();
+        _cancellationTokenSource = null;
+        _messageReceiveTask = null;
         
         _secsGem?.Dispose();
         _secsGem = null;
@@ -204,7 +218,7 @@ public class ConnectionManager : IDisposable
 
     public void Disconnect()
     {
-        DisconnectAsync().Wait();
+        DisconnectAsync().GetAwaiter().GetResult();
     }
 
     public async Task<SecsMessage?> SendMessageAsync(SecsMessage message, CancellationToken cancellation = default)

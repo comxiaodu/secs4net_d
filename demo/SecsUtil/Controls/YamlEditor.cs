@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Controls.Primitives;
 using System.Windows.Shapes;
+using System.Text.RegularExpressions;
 
 namespace SecsUtil.Controls
 {
@@ -128,8 +130,9 @@ namespace SecsUtil.Controls
             var lineStart = caretPosition.GetLineStartPosition(0);
             if (lineStart == null)
             {
-                CaretPosition.InsertTextInRun("\n");
-                CaretPosition = Document.ContentEnd;
+                var insertPosition = CaretPosition;
+                insertPosition.InsertTextInRun("\n");
+                CaretPosition = insertPosition.GetPositionAtOffset(1, LogicalDirection.Forward) ?? Document.ContentEnd;
                 return;
             }
 
@@ -164,8 +167,9 @@ namespace SecsUtil.Controls
             }
 
             string newLine = "\n" + new string(' ', newIndentLevel * IndentSize);
-            CaretPosition.InsertTextInRun(newLine);
-            CaretPosition = Document.ContentEnd;
+            var caretPositionBeforeInsert = CaretPosition;
+            caretPositionBeforeInsert.InsertTextInRun(newLine);
+            CaretPosition = caretPositionBeforeInsert.GetPositionAtOffset(newLine.Length, LogicalDirection.Forward) ?? Document.ContentEnd;
         }
 
         private int GetIndentLevel(string lineText)
@@ -278,6 +282,115 @@ namespace SecsUtil.Controls
                     Document.Blocks.Add(new Paragraph(new Run(value)));
                 }
             }
+        }
+
+        public void SetHighlightedText(string text, int? errorLine = null)
+        {
+            Document.Blocks.Clear();
+            Document.PagePadding = new Thickness(0);
+
+            var lines = text.Replace("\r\n", "\n").Split('\n');
+            for (var i = 0; i < lines.Length; i++)
+            {
+                var paragraph = new Paragraph
+                {
+                    Margin = new Thickness(0),
+                    LineHeight = FontSize * 1.45,
+                    Background = errorLine == i + 1 ? new SolidColorBrush(Color.FromRgb(255, 235, 235)) : Brushes.Transparent
+                };
+
+                foreach (var run in CreateHighlightedRuns(lines[i]))
+                    paragraph.Inlines.Add(run);
+
+                Document.Blocks.Add(paragraph);
+            }
+        }
+
+        private static IEnumerable<Run> CreateHighlightedRuns(string line)
+        {
+            var commentIndex = FindCommentIndex(line);
+            var code = commentIndex >= 0 ? line[..commentIndex] : line;
+            var comment = commentIndex >= 0 ? line[commentIndex..] : string.Empty;
+
+            var keyMatch = Regex.Match(code, @"^(\s*-\s*)?([A-Za-z_][\w.-]*)(\s*:)");
+            if (keyMatch.Success)
+            {
+                if (!string.IsNullOrEmpty(keyMatch.Groups[1].Value))
+                    yield return NewRun(keyMatch.Groups[1].Value, Color.FromRgb(80, 80, 80));
+
+                yield return NewRun(keyMatch.Groups[2].Value, Color.FromRgb(0, 92, 170), FontWeights.SemiBold);
+                yield return NewRun(keyMatch.Groups[3].Value, Color.FromRgb(80, 80, 80));
+
+                foreach (var run in HighlightValues(code[keyMatch.Length..]))
+                    yield return run;
+            }
+            else
+            {
+                foreach (var run in HighlightValues(code))
+                    yield return run;
+            }
+
+            if (!string.IsNullOrEmpty(comment))
+                yield return NewRun(comment, Color.FromRgb(0, 128, 0));
+        }
+
+        private static IEnumerable<Run> HighlightValues(string text)
+        {
+            var pattern = new Regex("(\"(?:\\\\.|[^\"])*\"|'(?:\\\\.|[^'])*'|\\btrue\\b|\\bfalse\\b|\\b\\d+(?:\\.\\d+)?\\b|\\[|\\]|,)", RegexOptions.IgnoreCase);
+            var last = 0;
+
+            foreach (Match match in pattern.Matches(text))
+            {
+                if (match.Index > last)
+                    yield return NewRun(text[last..match.Index], Color.FromRgb(40, 40, 40));
+
+                var token = match.Value;
+                var color = token.StartsWith("\"") || token.StartsWith("'")
+                    ? Color.FromRgb(163, 21, 21)
+                    : token.Equals("true", StringComparison.OrdinalIgnoreCase) || token.Equals("false", StringComparison.OrdinalIgnoreCase)
+                        ? Color.FromRgb(128, 0, 128)
+                        : char.IsDigit(token[0])
+                            ? Color.FromRgb(9, 134, 88)
+                            : Color.FromRgb(90, 90, 90);
+
+                yield return NewRun(token, color);
+                last = match.Index + match.Length;
+            }
+
+            if (last < text.Length)
+                yield return NewRun(text[last..], Color.FromRgb(40, 40, 40));
+        }
+
+        private static int FindCommentIndex(string line)
+        {
+            var inSingle = false;
+            var inDouble = false;
+
+            for (var i = 0; i < line.Length; i++)
+            {
+                var c = line[i];
+                if (c == '"' && !inSingle)
+                    inDouble = !inDouble;
+                else if (c == '\'' && !inDouble)
+                    inSingle = !inSingle;
+                else if (c == '#' && !inSingle && !inDouble)
+                    return i;
+            }
+
+            return -1;
+        }
+
+        private static Run NewRun(string text, Color color, FontWeight? weight = null)
+        {
+            var run = new Run(text)
+            {
+                Foreground = new SolidColorBrush(color)
+            };
+
+            if (weight.HasValue)
+                run.FontWeight = weight.Value;
+
+            return run;
         }
     }
 }

@@ -574,6 +574,7 @@ public class TemplateManager
 {
     private static readonly string _templatesDir = Path.Combine(AppContext.BaseDirectory, "Templates");
     private static readonly string _defaultTemplateFile = Path.Combine(_templatesDir, "default.yaml");
+    public static string DefaultTemplateFile => _defaultTemplateFile;
     
     private static readonly IDeserializer _yamlDeserializer = new DeserializerBuilder()
         .WithNamingConvention(NullNamingConvention.Instance)
