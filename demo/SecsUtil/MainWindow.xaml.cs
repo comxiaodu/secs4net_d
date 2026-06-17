@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -47,7 +48,95 @@ public partial class MainWindow : Window
         _timerUpdateTimer = new System.Windows.Threading.DispatcherTimer();
         _timerUpdateTimer.Interval = TimeSpan.FromMilliseconds(100);
         _timerUpdateTimer.Tick += UpdateTimerStatus;
+        Loaded += (_, _) => ApplyMonochromeWorkbenchTheme(this);
         
+    }
+
+    private static readonly SolidColorBrush WorkbenchBackgroundBrush = new(Color.FromRgb(24, 24, 24));
+    private static readonly SolidColorBrush WorkbenchSurfaceBrush = new(Color.FromRgb(32, 32, 32));
+    private static readonly SolidColorBrush WorkbenchPanelBrush = new(Color.FromRgb(27, 27, 27));
+    private static readonly SolidColorBrush WorkbenchBorderBrush = new(Color.FromRgb(45, 45, 45));
+    private static readonly SolidColorBrush WorkbenchTextBrush = new(Color.FromRgb(184, 184, 184));
+    private static readonly SolidColorBrush WorkbenchMutedTextBrush = new(Color.FromRgb(154, 154, 154));
+
+    private static void ApplyMonochromeWorkbenchTheme(DependencyObject root)
+    {
+        switch (root)
+        {
+            case Window window:
+                window.Background = WorkbenchBackgroundBrush;
+                break;
+            case Panel panel:
+                panel.Background ??= Brushes.Transparent;
+                break;
+            case Border border:
+                if (border.Background == null || IsLightBrush(border.Background))
+                    border.Background = WorkbenchSurfaceBrush;
+                border.BorderBrush = WorkbenchBorderBrush;
+                break;
+            case Control control:
+                control.Foreground = WorkbenchTextBrush;
+                if (control is TextBox textBox)
+                {
+                    textBox.Background = WorkbenchBackgroundBrush;
+                    textBox.BorderBrush = WorkbenchBorderBrush;
+                    textBox.CaretBrush = WorkbenchTextBrush;
+                    textBox.SelectionBrush = WorkbenchBorderBrush;
+                }
+                else if (control is RichTextBox richTextBox)
+                {
+                    richTextBox.Background = WorkbenchBackgroundBrush;
+                    richTextBox.BorderBrush = WorkbenchBorderBrush;
+                    richTextBox.CaretBrush = WorkbenchTextBrush;
+                    richTextBox.SelectionBrush = WorkbenchBorderBrush;
+                }
+                else if (control is TreeView treeView)
+                {
+                    treeView.Background = WorkbenchPanelBrush;
+                    treeView.BorderBrush = WorkbenchBorderBrush;
+                }
+                else if (control is ListBox listBox)
+                {
+                    listBox.Background = WorkbenchSurfaceBrush;
+                    listBox.BorderBrush = WorkbenchBorderBrush;
+                }
+                else if (control is Button button)
+                {
+                    button.Background = WorkbenchSurfaceBrush;
+                    button.BorderBrush = WorkbenchBorderBrush;
+                }
+                else if (control is ComboBox comboBox)
+                {
+                    comboBox.Background = WorkbenchBackgroundBrush;
+                    comboBox.BorderBrush = WorkbenchBorderBrush;
+                }
+                else if (control is ComboBoxItem comboBoxItem)
+                {
+                    comboBoxItem.Background = WorkbenchBackgroundBrush;
+                    comboBoxItem.Foreground = WorkbenchTextBrush;
+                }
+                else if (control is ScrollBar scrollBar)
+                {
+                    scrollBar.Background = WorkbenchBackgroundBrush;
+                    scrollBar.Foreground = WorkbenchBorderBrush;
+                }
+                else if (control is Label label)
+                {
+                    label.Foreground = WorkbenchMutedTextBrush;
+                }
+                break;
+        }
+
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+            ApplyMonochromeWorkbenchTheme(VisualTreeHelper.GetChild(root, i));
+    }
+
+    private static bool IsLightBrush(Brush brush)
+    {
+        if (brush is not SolidColorBrush solid)
+            return false;
+
+        return solid.Color.R > 80 || solid.Color.G > 80 || solid.Color.B > 80;
     }
 
     private void UpdateTimerStatus(object? sender, EventArgs e)
@@ -58,22 +147,22 @@ public partial class MainWindow : Window
             
             lblT3.Content = $"{_connectionManager.T3Remaining}ms";
             lblT3Status.Content = _connectionManager.T3Active ? "运行中" : "空闲";
-            lblT3Status.Foreground = _connectionManager.T3Active ? Brushes.Red : Brushes.Green;
+            lblT3Status.Foreground = new SolidColorBrush(_connectionManager.T3Active ? Color.FromRgb(184, 184, 184) : Color.FromRgb(154, 154, 154));
             pbT3.Value = _connectionManager.T3Progress;
             
             lblT5.Content = $"{_connectionManager.T5Remaining}ms";
             lblT5Status.Content = _connectionManager.T5Active ? "运行中" : "空闲";
-            lblT5Status.Foreground = _connectionManager.T5Active ? Brushes.Red : Brushes.Green;
+            lblT5Status.Foreground = new SolidColorBrush(_connectionManager.T5Active ? Color.FromRgb(184, 184, 184) : Color.FromRgb(154, 154, 154));
             pbT5.Value = _connectionManager.T5Progress;
             
             lblT7.Content = $"{_connectionManager.T7Remaining}ms";
             lblT7Status.Content = _connectionManager.T7Active ? "运行中" : "空闲";
-            lblT7Status.Foreground = _connectionManager.T7Active ? Brushes.Red : Brushes.Green;
+            lblT7Status.Foreground = new SolidColorBrush(_connectionManager.T7Active ? Color.FromRgb(184, 184, 184) : Color.FromRgb(154, 154, 154));
             pbT7.Value = _connectionManager.T7Progress;
             
             lblT8.Content = $"{_connectionManager.T8Remaining}ms";
             lblT8Status.Content = _connectionManager.T8Active ? "运行中" : "空闲";
-            lblT8Status.Foreground = _connectionManager.T8Active ? Brushes.Red : Brushes.Green;
+            lblT8Status.Foreground = new SolidColorBrush(_connectionManager.T8Active ? Color.FromRgb(184, 184, 184) : Color.FromRgb(154, 154, 154));
             pbT8.Value = _connectionManager.T8Progress;
             
             lblSession.Content = _connectionManager.SessionId.HasValue ? $"0x{_connectionManager.SessionId.Value:X4}" : "-";
@@ -82,22 +171,22 @@ public partial class MainWindow : Window
         {
             lblT3.Content = "-";
             lblT3Status.Content = "空闲";
-            lblT3Status.Foreground = Brushes.Green;
+            lblT3Status.Foreground = new SolidColorBrush(Color.FromRgb(154, 154, 154));
             pbT3.Value = 0;
             
             lblT5.Content = "-";
             lblT5Status.Content = "空闲";
-            lblT5Status.Foreground = Brushes.Green;
+            lblT5Status.Foreground = new SolidColorBrush(Color.FromRgb(154, 154, 154));
             pbT5.Value = 0;
             
             lblT7.Content = "-";
             lblT7Status.Content = "空闲";
-            lblT7Status.Foreground = Brushes.Green;
+            lblT7Status.Foreground = new SolidColorBrush(Color.FromRgb(154, 154, 154));
             pbT7.Value = 0;
             
             lblT8.Content = "-";
             lblT8Status.Content = "空闲";
-            lblT8Status.Foreground = Brushes.Green;
+            lblT8Status.Foreground = new SolidColorBrush(Color.FromRgb(154, 154, 154));
             pbT8.Value = 0;
             
             lblSession.Content = "-";
@@ -574,8 +663,9 @@ public partial class MainWindow : Window
             Width = textBlock.ActualWidth + 20,
             Padding = new Thickness(0),
             BorderThickness = new Thickness(1),
-            BorderBrush = Brushes.LightBlue,
-            Background = Brushes.White
+            BorderBrush = new SolidColorBrush(Color.FromRgb(45, 45, 45)),
+            Background = new SolidColorBrush(Color.FromRgb(32, 32, 32)),
+            Foreground = new SolidColorBrush(Color.FromRgb(184, 184, 184))
         };
 
         textBox.SelectAll();
@@ -994,26 +1084,26 @@ public partial class MainWindow : Window
             var paragraph = new Paragraph();
             
             var timestampRun = new Run($"[{timestamp}] ");
-            timestampRun.Foreground = new SolidColorBrush(Colors.Gray);
+            timestampRun.Foreground = new SolidColorBrush(Color.FromRgb(111, 111, 111));
             paragraph.Inlines.Add(timestampRun);
             
             var directionRun = new Run($"{direction} ");
             if (isError)
             {
-                directionRun.Foreground = new SolidColorBrush(Colors.Red);
+                directionRun.Foreground = new SolidColorBrush(Color.FromRgb(184, 184, 184));
             }
             else if (isReceived)
             {
-                directionRun.Foreground = new SolidColorBrush(Colors.Blue);
+                directionRun.Foreground = new SolidColorBrush(Color.FromRgb(154, 154, 154));
             }
             else
             {
-                directionRun.Foreground = new SolidColorBrush(Colors.DarkGreen);
+                directionRun.Foreground = new SolidColorBrush(Color.FromRgb(130, 130, 130));
             }
             paragraph.Inlines.Add(directionRun);
             
             var messageRun = new Run($"{msgId} {message}\n");
-            messageRun.Foreground = new SolidColorBrush(Colors.Black);
+            messageRun.Foreground = new SolidColorBrush(Color.FromRgb(184, 184, 184));
             paragraph.Inlines.Add(messageRun);
             
             txtLog.Document.Blocks.Add(paragraph);
@@ -1043,27 +1133,27 @@ public partial class MainWindow : Window
                 var paragraph = new Paragraph();
                 
                 var timestampRun = new Run($"[{entry.Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff")}] ");
-                timestampRun.Foreground = new SolidColorBrush(Colors.Gray);
+                timestampRun.Foreground = new SolidColorBrush(Color.FromRgb(111, 111, 111));
                 paragraph.Inlines.Add(timestampRun);
                 
                 var direction = entry.IsReceived ? "<--" : "-->";
                 var directionRun = new Run($"{direction} ");
                 if (entry.IsError)
                 {
-                    directionRun.Foreground = new SolidColorBrush(Colors.Red);
+                    directionRun.Foreground = new SolidColorBrush(Color.FromRgb(184, 184, 184));
                 }
                 else if (entry.IsReceived)
                 {
-                    directionRun.Foreground = new SolidColorBrush(Colors.Blue);
+                    directionRun.Foreground = new SolidColorBrush(Color.FromRgb(154, 154, 154));
                 }
                 else
                 {
-                    directionRun.Foreground = new SolidColorBrush(Colors.DarkGreen);
+                    directionRun.Foreground = new SolidColorBrush(Color.FromRgb(130, 130, 130));
                 }
                 paragraph.Inlines.Add(directionRun);
                 
                 var messageRun = new Run($"{entry.Message}\n");
-                messageRun.Foreground = new SolidColorBrush(Colors.Black);
+                messageRun.Foreground = new SolidColorBrush(Color.FromRgb(184, 184, 184));
                 paragraph.Inlines.Add(messageRun);
                 
                 txtLog.Document.Blocks.Add(paragraph);
@@ -1127,9 +1217,9 @@ public partial class MainWindow : Window
 
         var (brush, text) = state switch
         {
-            ConnectionState.Selected => (Brushes.DodgerBlue, "已连接"),
-            ConnectionState.NotConnected => (new SolidColorBrush(Color.FromRgb(209, 52, 56)), "未连接"),
-            _ => (new SolidColorBrush(Color.FromRgb(255, 185, 0)), "连接中")
+            ConnectionState.Selected => (new SolidColorBrush(Color.FromRgb(45, 45, 45)), "已连接"),
+            ConnectionState.NotConnected => (new SolidColorBrush(Color.FromRgb(32, 32, 32)), "未连接"),
+            _ => (new SolidColorBrush(Color.FromRgb(27, 27, 27)), "连接中")
         };
 
         statusLed.Fill = brush;

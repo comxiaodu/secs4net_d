@@ -20,6 +20,13 @@ namespace SecsUtil.Controls
         {
             FontFamily = new FontFamily("Consolas");
             FontSize = 11;
+            Background = new SolidColorBrush(Color.FromRgb(24, 24, 24));
+            Foreground = new SolidColorBrush(Color.FromRgb(184, 184, 184));
+            CaretBrush = new SolidColorBrush(Color.FromRgb(184, 184, 184));
+            BorderBrush = new SolidColorBrush(Color.FromRgb(45, 45, 45));
+            SelectionBrush = new SolidColorBrush(Color.FromRgb(45, 45, 45));
+            Document.Background = new SolidColorBrush(Color.FromRgb(24, 24, 24));
+            Document.Foreground = new SolidColorBrush(Color.FromRgb(184, 184, 184));
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
             Padding = new Thickness(8, 8, 8, 8);
@@ -239,7 +246,7 @@ namespace SecsUtil.Controls
                                     Y1 = offset,
                                     X2 = x,
                                     Y2 = offset + lineHeight,
-                                    Stroke = new SolidColorBrush(Color.FromRgb(200, 200, 230)),
+                                    Stroke = new SolidColorBrush(Color.FromRgb(64, 64, 64)),
                                     StrokeThickness = 1,
                                     StrokeDashArray = new DoubleCollection(new[] { 3.0, 2.0 })
                                 };
@@ -288,6 +295,8 @@ namespace SecsUtil.Controls
         {
             Document.Blocks.Clear();
             Document.PagePadding = new Thickness(0);
+            Document.Background = new SolidColorBrush(Color.FromRgb(24, 24, 24));
+            Background = new SolidColorBrush(Color.FromRgb(24, 24, 24));
 
             var lines = text.Replace("\r\n", "\n").Split('\n');
             for (var i = 0; i < lines.Length; i++)
@@ -296,7 +305,7 @@ namespace SecsUtil.Controls
                 {
                     Margin = new Thickness(0),
                     LineHeight = FontSize * 1.45,
-                    Background = errorLine == i + 1 ? new SolidColorBrush(Color.FromRgb(255, 235, 235)) : Brushes.Transparent
+                    Background = errorLine == i + 1 ? new SolidColorBrush(Color.FromRgb(45, 45, 45)) : Brushes.Transparent
                 };
 
                 foreach (var run in CreateHighlightedRuns(lines[i]))
@@ -316,10 +325,10 @@ namespace SecsUtil.Controls
             if (keyMatch.Success)
             {
                 if (!string.IsNullOrEmpty(keyMatch.Groups[1].Value))
-                    yield return NewRun(keyMatch.Groups[1].Value, Color.FromRgb(80, 80, 80));
+                    yield return NewRun(keyMatch.Groups[1].Value, Color.FromRgb(156, 156, 156));
 
-                yield return NewRun(keyMatch.Groups[2].Value, Color.FromRgb(0, 92, 170), FontWeights.SemiBold);
-                yield return NewRun(keyMatch.Groups[3].Value, Color.FromRgb(80, 80, 80));
+                yield return NewRun(keyMatch.Groups[2].Value, Color.FromRgb(86, 156, 214), FontWeights.SemiBold);
+                yield return NewRun(keyMatch.Groups[3].Value, Color.FromRgb(156, 156, 156));
 
                 foreach (var run in HighlightValues(code[keyMatch.Length..]))
                     yield return run;
@@ -331,7 +340,7 @@ namespace SecsUtil.Controls
             }
 
             if (!string.IsNullOrEmpty(comment))
-                yield return NewRun(comment, Color.FromRgb(0, 128, 0));
+                yield return NewRun(comment, Color.FromRgb(106, 153, 85));
         }
 
         private static IEnumerable<Run> HighlightValues(string text)
@@ -342,23 +351,23 @@ namespace SecsUtil.Controls
             foreach (Match match in pattern.Matches(text))
             {
                 if (match.Index > last)
-                    yield return NewRun(text[last..match.Index], Color.FromRgb(40, 40, 40));
+                    yield return NewRun(text[last..match.Index], Color.FromRgb(212, 212, 212));
 
                 var token = match.Value;
                 var color = token.StartsWith("\"") || token.StartsWith("'")
-                    ? Color.FromRgb(163, 21, 21)
+                    ? Color.FromRgb(206, 145, 120)
                     : token.Equals("true", StringComparison.OrdinalIgnoreCase) || token.Equals("false", StringComparison.OrdinalIgnoreCase)
-                        ? Color.FromRgb(128, 0, 128)
+                        ? Color.FromRgb(86, 156, 214)
                         : char.IsDigit(token[0])
-                            ? Color.FromRgb(9, 134, 88)
-                            : Color.FromRgb(90, 90, 90);
+                            ? Color.FromRgb(181, 206, 168)
+                            : Color.FromRgb(156, 156, 156);
 
                 yield return NewRun(token, color);
                 last = match.Index + match.Length;
             }
 
             if (last < text.Length)
-                yield return NewRun(text[last..], Color.FromRgb(40, 40, 40));
+                yield return NewRun(text[last..], Color.FromRgb(212, 212, 212));
         }
 
         private static int FindCommentIndex(string line)
